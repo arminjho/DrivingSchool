@@ -1,0 +1,23 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY eAutoskola.Domain/eAutoskola.Domain.csproj eAutoskola.Domain/
+COPY eAutoskola.Contracts/eAutoskola.Contracts.csproj eAutoskola.Contracts/
+COPY eAutoskola.Infrastructure/eAutoskola.Infrastructure.csproj eAutoskola.Infrastructure/
+COPY eAutoskola.Application/eAutoskola.Application.csproj eAutoskola.Application/
+COPY eAutoskola.API/eAutoskola.API.csproj eAutoskola.API/
+RUN dotnet restore eAutoskola.API/eAutoskola.API.csproj
+
+COPY eAutoskola.Domain/ eAutoskola.Domain/
+COPY eAutoskola.Contracts/ eAutoskola.Contracts/
+COPY eAutoskola.Infrastructure/ eAutoskola.Infrastructure/
+COPY eAutoskola.Application/ eAutoskola.Application/
+COPY eAutoskola.API/ eAutoskola.API/
+RUN dotnet publish eAutoskola.API/eAutoskola.API.csproj -c Release -o /app --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+RUN mkdir -p /app/logs && chown -R app:app /app
+COPY --from=build /app .
+USER app
+ENTRYPOINT ["dotnet", "eAutoskola.API.dll"]

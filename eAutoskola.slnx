@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="eAutoskola.API/eAutoskola.API.csproj" />
+  <Project Path="eAutoskola.Application/eAutoskola.Application.csproj" />
+  <Project Path="eAutoskola.Contracts/eAutoskola.Contracts.csproj" />
+  <Project Path="eAutoskola.Domain/eAutoskola.Domain.csproj" />
+  <Project Path="eAutoskola.Infrastructure/eAutoskola.Infrastructure.csproj" />
+  <Project Path="eAutoskola.Tests/eAutoskola.Tests.csproj" />
+  <Project Path="eAutoskola.Worker/eAutoskola.Worker.csproj" />
+</Solution>

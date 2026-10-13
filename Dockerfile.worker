@@ -1,0 +1,16 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY eAutoskola.Contracts/eAutoskola.Contracts.csproj eAutoskola.Contracts/
+COPY eAutoskola.Worker/eAutoskola.Worker.csproj eAutoskola.Worker/
+RUN dotnet restore eAutoskola.Worker/eAutoskola.Worker.csproj
+
+COPY eAutoskola.Contracts/ eAutoskola.Contracts/
+COPY eAutoskola.Worker/ eAutoskola.Worker/
+RUN dotnet publish eAutoskola.Worker/eAutoskola.Worker.csproj -c Release -o /app --no-restore
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /app .
+USER app
+ENTRYPOINT ["dotnet", "eAutoskola.Worker.dll"]

@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+.git/
+.env
+docs/
+UI/
+*.md

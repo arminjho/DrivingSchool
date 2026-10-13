@@ -1,0 +1,98 @@
+services:
+  eautoskola-sql:
+    image: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04
+    container_name: eautoskola-sql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${DB_SA_PASSWORD}
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - eautoskola-sql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - eautoskola-net
+
+  rabbitmq:
+    image: rabbitmq:4.0-management
+    container_name: eautoskola-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "15672:15672"
+      - "5673:5672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - eautoskola-net
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: eautoskola-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - eautoskola-net
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: eautoskola-api
+    env_file: .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:5000
+      DB_CONNECTION_STRING: "Server=eautoskola-sql,1433;Database=210044;User Id=sa;Password=${DB_SA_PASSWORD};TrustServerCertificate=True"
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+    ports:
+      - "5000:5000"
+    depends_on:
+      eautoskola-sql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - eautoskola-net
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: eautoskola-worker
+    env_file: .env
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_USE_SSL: "false"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    networks:
+      - eautoskola-net
+    restart: unless-stopped
+
+networks:
+  eautoskola-net:
+    driver: bridge
+
+volumes:
+  eautoskola-sql-data:

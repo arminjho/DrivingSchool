@@ -218,11 +218,12 @@ eAutoskola.Application      — DTOs (`Dto` suffix), Requests (`Request` suffix,
 
 eAutoskola.Infrastructure   — EAutoskolaDbContext : DbContext (concrete; Application depends on this
                               project to get it); EF entity configurations; migrations; seeding; QuestPDF
-                              report generation; PayPal client wrapper; RabbitMQ publisher (implements an
-                              IEmailPublisher/INotificationPublisher interface declared in Application —
-                              same pattern ClinicNow already uses, not a new abstraction); SMTP sender;
-                              *Options config classes (bound once from .env, see §2.9).
-                              References: Domain.
+                              report generation; PayPal client wrapper; RabbitMQ publisher
+                              (IEmailPublisher + RabbitMqEmailPublisher, both declared here — same
+                              single-project pattern ClinicNow.Services already uses); *Options config
+                              classes (bound once from .env, see §2.9). The actual SMTP send happens in
+                              Worker, not here - Infrastructure's job ends at publishing the message.
+                              References: Domain, Contracts (for the shared EmailMessage contract).
 
 eAutoskola.API               — Thin controllers (BaseController/BaseCRUDController unchanged from §2.1;
                               complex entities get a dedicated controller injecting both the Query and

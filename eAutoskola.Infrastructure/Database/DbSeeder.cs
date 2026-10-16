@@ -2,6 +2,7 @@ using eAutoskola.Domain.Entities;
 using eAutoskola.Domain.Enums;
 using eAutoskola.Domain.Payments;
 using eAutoskola.Domain.Security;
+using eAutoskola.Infrastructure.Payments;
 using eAutoskola.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 
@@ -154,6 +155,12 @@ public static class DbSeeder
         {
             UserId = u.Id, VehicleCategoryId = categoryB.Id,
         }));
+
+        // Same method self-registration and the admin "Novi korisnik" use.
+        foreach (var student in studentUsers)
+        {
+            await PackageChargeProvisioner.AddPackageChargesAsync(context, student, cancellationToken);
+        }
         await context.SaveChangesAsync(cancellationToken);
 
         // --- Vehicles (same registrations as the docs/prijava.md mockup) ---
@@ -179,9 +186,9 @@ public static class DbSeeder
         var tehnickiPregled = vehicleServiceTypes[2];
 
         context.VehicleServices.AddRange(
-            new VehicleService { VehicleId = polo.Id, ServiceDate = new DateTime(2026, 4, 10, 0, 0, 0, DateTimeKind.Utc), VehicleServiceTypeId = redovniServis.Id, Description = "Redovni servis - zamjena filtera i tekućina", Cost = 120.00m, Status = VehicleServiceStatus.Completed },
-            new VehicleService { VehicleId = focus.Id, ServiceDate = new DateTime(2026, 5, 2, 0, 0, 0, DateTimeKind.Utc), VehicleServiceTypeId = zamjenaUlja.Id, Description = "Zamjena motornog ulja i filtera", Cost = 60.00m, Status = VehicleServiceStatus.InProgress },
-            new VehicleService { VehicleId = octavia.Id, ServiceDate = new DateTime(2026, 5, 20, 0, 0, 0, DateTimeKind.Utc), VehicleServiceTypeId = tehnickiPregled.Id, Description = "Godišnji tehnički pregled", Cost = 80.00m, Status = VehicleServiceStatus.Scheduled });
+            new VehicleService { VehicleId = polo.Id, ServiceDate = new DateTime(2026, 4, 10, 0, 0, 0, DateTimeKind.Utc), VehicleServiceTypeId = redovniServis.Id, Description = "Redovni servis - zamjena filtera i tekućina", Cost = 120.00m, Status = VehicleServiceStatus.Completed, CreatedAt = DateTime.UtcNow.AddDays(-6) },
+            new VehicleService { VehicleId = focus.Id, ServiceDate = new DateTime(2026, 5, 2, 0, 0, 0, DateTimeKind.Utc), VehicleServiceTypeId = zamjenaUlja.Id, Description = "Zamjena motornog ulja i filtera", Cost = 60.00m, Status = VehicleServiceStatus.InProgress, CreatedAt = DateTime.UtcNow.AddDays(-4) },
+            new VehicleService { VehicleId = octavia.Id, ServiceDate = new DateTime(2026, 5, 20, 0, 0, 0, DateTimeKind.Utc), VehicleServiceTypeId = tehnickiPregled.Id, Description = "Godišnji tehnički pregled", Cost = 80.00m, Status = VehicleServiceStatus.Scheduled, CreatedAt = DateTime.UtcNow.AddDays(-2) });
 
         // --- A handful of sample lessons across every status, for testing list/filter endpoints ---
         var centar = zones[0];
@@ -221,7 +228,23 @@ public static class DbSeeder
             LessonNumber = 1, Status = LessonStatus.Cancelled, RejectionReason = "Vozilo nije dostupno u terminu.",
         };
 
-        context.Lessons.AddRange(pendingLesson, confirmedLesson, completedLesson, cancelledLesson);
+        // Two lessons later today (the next full hours), so the dashboard's "today" table isn't
+        // empty. Near midnight they simply fall on tomorrow.
+        var nextFullHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, DateTimeKind.Utc).AddHours(1);
+        var todayConfirmedLesson = new Lesson
+        {
+            StudentId = emir.Id, InstructorId = sanja.Id, VehicleId = polo.Id, DrivingZoneId = centar.Id,
+            StartsAtUtc = nextFullHour, EndsAtUtc = nextFullHour.AddHours(1),
+            LessonNumber = 2, Status = LessonStatus.Confirmed,
+        };
+        var todayPendingLesson = new Lesson
+        {
+            StudentId = lejla.Id, InstructorId = damir.Id, VehicleId = octavia.Id, DrivingZoneId = zones[2].Id,
+            StartsAtUtc = nextFullHour.AddHours(2), EndsAtUtc = nextFullHour.AddHours(3),
+            LessonNumber = 2, Note = "Vježba vožnje u gradu.", Status = LessonStatus.Pending,
+        };
+
+        context.Lessons.AddRange(pendingLesson, confirmedLesson, completedLesson, cancelledLesson, todayConfirmedLesson, todayPendingLesson);
         await context.SaveChangesAsync(cancellationToken);
 
         context.LessonStatusHistories.AddRange(
@@ -229,7 +252,9 @@ public static class DbSeeder
             new LessonStatusHistory { LessonId = confirmedLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Confirmed, ChangedByUserId = damir.Id, Reason = "Potvrđen termin." },
             new LessonStatusHistory { LessonId = completedLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Confirmed, ChangedByUserId = sanja.Id, Reason = "Potvrđen termin." },
             new LessonStatusHistory { LessonId = completedLesson.Id, FromStatus = LessonStatus.Confirmed, ToStatus = LessonStatus.Completed, ChangedByUserId = sanja.Id, Reason = "Čas uspješno odrađen." },
-            new LessonStatusHistory { LessonId = cancelledLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Cancelled, ChangedByUserId = sanja.Id, Reason = "Vozilo nije dostupno u terminu." });
+            new LessonStatusHistory { LessonId = cancelledLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Cancelled, ChangedByUserId = sanja.Id, Reason = "Vozilo nije dostupno u terminu." },
+            new LessonStatusHistory { LessonId = todayConfirmedLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Confirmed, ChangedByUserId = sanja.Id, Reason = "Potvrđen termin." },
+            new LessonStatusHistory { LessonId = todayPendingLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Pending, ChangedByUserId = lejla.Id, Reason = "Kreiran zahtjev za čas." });
 
         context.Notifications.AddRange(
             new Notification { UserId = damir.Id, Title = "Novi zahtjev za čas", Message = "Amina Hodžić je zatražila čas vožnje.", Type = NotificationType.LessonCreated },
@@ -267,6 +292,7 @@ public static class DbSeeder
                 StudentId = student.Id, InstructorId = i % 2 == 0 ? damir.Id : sanja.Id, VehicleId = polo.Id, DrivingZoneId = centar.Id,
                 StartsAtUtc = start, EndsAtUtc = start.AddHours(1), LessonNumber = i + 1,
                 Status = LessonStatus.Completed, Rating = 4, StartedAt = start, CompletedAt = start.AddHours(1),
+                CreatedAt = start.AddDays(-3),
             };
         }).ToList();
         context.Lessons.AddRange(packageLessons);
@@ -275,8 +301,8 @@ public static class DbSeeder
         foreach (var lesson in packageLessons)
         {
             context.LessonStatusHistories.AddRange(
-                new LessonStatusHistory { LessonId = lesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Confirmed, ChangedByUserId = lesson.InstructorId, Reason = "Potvrđen termin." },
-                new LessonStatusHistory { LessonId = lesson.Id, FromStatus = LessonStatus.Confirmed, ToStatus = LessonStatus.Completed, ChangedByUserId = lesson.InstructorId, Reason = "Čas uspješno odrađen." });
+                new LessonStatusHistory { LessonId = lesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Confirmed, ChangedByUserId = lesson.InstructorId, Reason = "Potvrđen termin.", ChangedAt = lesson.CreatedAt.AddDays(1) },
+                new LessonStatusHistory { LessonId = lesson.Id, FromStatus = LessonStatus.Confirmed, ToStatus = LessonStatus.Completed, ChangedByUserId = lesson.InstructorId, Reason = "Čas uspješno odrađen.", ChangedAt = lesson.CompletedAt!.Value });
         }
 
         // Historical: extra lesson #31, paid, then cancelled by the admin and refunded.
@@ -286,6 +312,7 @@ public static class DbSeeder
             StudentId = student.Id, InstructorId = sanja.Id, VehicleId = polo.Id, DrivingZoneId = centar.Id,
             StartsAtUtc = refundedStart, EndsAtUtc = refundedStart.AddHours(1), LessonNumber = PaymentConstants.PackagePracticalLessonQuota + 1,
             Status = LessonStatus.Cancelled, RejectionReason = "Otkazano od strane administracije.",
+            CreatedAt = refundedStart.AddDays(-6),
         };
         context.Lessons.Add(refundedLesson);
         await context.SaveChangesAsync(cancellationToken);
@@ -325,8 +352,8 @@ public static class DbSeeder
             ],
         });
         context.LessonStatusHistories.AddRange(
-            new LessonStatusHistory { LessonId = refundedLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Confirmed, ChangedByUserId = sanja.Id, Reason = "Potvrđen termin." },
-            new LessonStatusHistory { LessonId = refundedLesson.Id, FromStatus = LessonStatus.Confirmed, ToStatus = LessonStatus.Cancelled, ChangedByUserId = admin.Id, Reason = "Otkazano od strane administracije." });
+            new LessonStatusHistory { LessonId = refundedLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Confirmed, ChangedByUserId = sanja.Id, Reason = "Potvrđen termin.", ChangedAt = refundedStart.AddDays(-5) },
+            new LessonStatusHistory { LessonId = refundedLesson.Id, FromStatus = LessonStatus.Confirmed, ToStatus = LessonStatus.Cancelled, ChangedByUserId = admin.Id, Reason = "Otkazano od strane administracije.", ChangedAt = refundedAt });
 
         // Upcoming: extra lesson #32, confirmed, charge unpaid.
         var upcomingStart = now.Date.AddDays(5).AddHours(10);

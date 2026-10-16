@@ -1,121 +1,72 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'core/app_theme.dart';
+import 'core/auth_api.dart';
+import 'core/auth_session.dart';
+import 'core/notification_center.dart';
+import 'core/notification_hub.dart';
+import 'core/roles.dart';
+import 'core/token_store.dart';
+import 'l10n/app_strings.dart';
+import 'layouts/app_shell.dart';
+import 'providers/notification_provider.dart';
+import 'screens/login_screen.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // A token saved by a previous run is picked up before the first frame, so a returning user
+  // never sees the login screen flash.
+  final session = AuthSession(const SecureTokenStore());
+  await session.restore();
+
+  runApp(DrivingSchoolDesktopApp(session: session));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class DrivingSchoolDesktopApp extends StatelessWidget {
+  const DrivingSchoolDesktopApp({super.key, required this.session, this.hub});
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
+  final AuthSession session;
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+  /// Replaceable so tests can run the app without opening a real connection.
+  final NotificationHub? hub;
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: session),
+        Provider(
+          create: (context) => AuthApi(
+            session: session,
+            allowedRoles: const {Roles.admin},
+            roleNotAllowedMessage: AppStrings.roleNotAllowed,
+          ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+        // Above MaterialApp so the bell keeps counting whichever screen is open. It starts and
+        // stops itself off the session, so there is nothing to call on login.
+        ChangeNotifierProvider(
+          create: (context) => NotificationCenter(
+            session: session,
+            provider: NotificationProvider(session),
+            hub: hub ?? SignalRNotificationHub(),
+          ),
+        ),
+      ],
+      child: MaterialApp(
+        title: AppStrings.appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.dark(),
+        themeMode: ThemeMode.dark,
+        locale: const Locale('bs'),
+        supportedLocales: const [Locale('bs')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        // The screen follows the session alone: logging in, logging out, a 401 or token expiry
+        // all swap it without any screen calling Navigator.
+        home: Consumer<AuthSession>(
+          builder: (context, session, child) => session.isLoggedIn ? const AppShell() : const LoginScreen(),
+        ),
       ),
     );
   }

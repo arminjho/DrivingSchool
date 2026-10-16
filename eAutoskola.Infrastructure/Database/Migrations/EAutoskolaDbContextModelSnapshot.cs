@@ -1063,6 +1063,9 @@ namespace eAutoskola.Infrastructure.Database.Migrations
                     b.Property<decimal>("Cost")
                         .HasColumnType("decimal(10,2)");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)

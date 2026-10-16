@@ -4,6 +4,7 @@ using eAutoskola.Domain.Exceptions;
 using eAutoskola.Domain.Resources;
 using eAutoskola.Domain.Security;
 using eAutoskola.Infrastructure.Database;
+using eAutoskola.Infrastructure.Payments;
 using eAutoskola.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 
@@ -64,19 +65,17 @@ public class UserService : BaseCRUDService<UserDto, UserSearchObject, UserInsert
         FieldValidationRules.ThrowIfAny(errors);
 
         entity.PasswordHash = PasswordHasher.Hash(request.Password);
-    }
 
-    protected override async Task AfterInsertAsync(User entity, UserInsertRequest request, CancellationToken cancellationToken)
-    {
+        // The profile (and, for a student, the package charges) are attached to the user here so
+        // the base class's single SaveChangesAsync stores everything in one transaction.
         if (request.Role == Role.Student)
         {
-            Context.StudentProfiles.Add(new StudentProfile { UserId = entity.Id, VehicleCategoryId = request.VehicleCategoryId!.Value });
-            await SaveChangesAsync(cancellationToken);
+            entity.StudentProfile = new StudentProfile { VehicleCategoryId = request.VehicleCategoryId!.Value };
+            await PackageChargeProvisioner.AddPackageChargesAsync(Context, entity, cancellationToken);
         }
         else if (request.Role == Role.Instructor)
         {
-            Context.InstructorProfiles.Add(new InstructorProfile { UserId = entity.Id, VehicleCategoryId = request.VehicleCategoryId!.Value });
-            await SaveChangesAsync(cancellationToken);
+            entity.InstructorProfile = new InstructorProfile { VehicleCategoryId = request.VehicleCategoryId!.Value };
         }
     }
 

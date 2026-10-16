@@ -40,6 +40,25 @@ public class PaymentTestFixture
         Context.SaveChanges();
     }
 
+    /// <summary>The seeded price list: the three package items plus the extra-lesson price.</summary>
+    public void AddPriceList()
+    {
+        Context.ServiceTypes.AddRange(
+            new ServiceType { Id = 11, Code = ServiceTypeCodes.TheoreticalTraining, Name = "Teorijska obuka (20h)", Price = 200m },
+            new ServiceType { Id = 12, Code = ServiceTypeCodes.PracticalDriving, Name = "Praktična vožnja (30h)", Price = 1200m },
+            new ServiceType { Id = 13, Code = ServiceTypeCodes.AdministrationAndExam, Name = "Administracija i ispit", Price = 150m },
+            new ServiceType { Id = 14, Code = ServiceTypeCodes.ExtraLesson, Name = "Dodatni čas vožnje", Price = 40m });
+        Context.SaveChanges();
+    }
+
+    /// <summary>Counts SaveChanges calls so a test can prove several entities were stored in one.</summary>
+    public Func<int> CountSaves()
+    {
+        var saves = 0;
+        Context.SavedChanges += (_, _) => saves++;
+        return () => saves;
+    }
+
     private static User NewUser(int id, string email, string role) => new()
     {
         Id = id, Email = email, PasswordHash = "x", Role = role, FirstName = "Ime", LastName = "Prezime", PhoneNumber = "+387 61 000 000",

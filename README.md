@@ -9,6 +9,7 @@ Sistem za upravljanje autoškolom (seminarski rad, Razvoj softvera II, FIT Mosta
 - [Arhitektura](#arhitektura)
 - [Pokretanje](#pokretanje)
 - [Korisnički podaci za pristup](#korisnički-podaci-za-pristup)
+- [Dashboard i izvještaji](#dashboard-i-izvještaji)
 - [Plaćanje i povrat novca](#plaćanje-i-povrat-novca)
 - [Provjera plaćanja sa PayPal sandbox kupcem](#provjera-plaćanja-sa-paypal-sandbox-kupcem)
 - [Testovi](#testovi)
@@ -44,7 +45,7 @@ Docker servisi: SQL Server (baza `210044`), RabbitMQ, MailHog (lokalni SMTP hvat
 
    Pri prvom pokretanju API sam primjenjuje migracije i popunjava bazu početnim podacima (seed). Za potpuno čisto stanje: `docker compose down -v` pa ponovo `up`.
 
-   Ako RabbitMQ još nije spreman kada se Worker podigne, Worker se jednom ili dva puta automatski restartuje (`restart: unless-stopped`) i zatim radi normalno.
+   Ako RabbitMQ još nije spreman kada se Worker podigne, Worker ponavlja povezivanje (razmak raste do 30 s) dok se ne poveže; ne pada i ne restartuje se.
 
 | Servis | Adresa |
 |---|---|
@@ -71,9 +72,22 @@ Dodatni seed računi (svi sa lozinkom `test`):
 | `amina.hodzic@eautoskola.ba`, `emir.mustafic@eautoskola.ba`, `lejla.basic@eautoskola.ba` | Učenik | Primjer časova u različitim statusima |
 | `damir.kovacevic@eautoskola.ba`, `sanja.peric@eautoskola.ba` | Instruktor | |
 
+## Dashboard i izvještaji
+
+Samo za ulogu **Admin** (`desktop` / `test`).
+
+| Endpoint | Opis |
+|---|---|
+| `GET /api/dashboard` | Učenici, instruktori, vozila (aktivna / na servisu), časovi ovog mjeseca sa promjenom u odnosu na prošli, broj završenih časova po mjesecima tekuće godine, raspodjela po statusima, nedavne aktivnosti i današnji predstojeći časovi. Rezultat se kratko (30 s) kešira. |
+| `GET /api/reports/lesson-status/pdf` | PDF "Izvještaj o statusu časova vožnje". Filteri: `dateFrom`, `dateTo` (`yyyy-MM-dd`), `instructorId`. Broj odrađenih, zakazanih (na čekanju + potvrđeni) i otkazanih časova po instruktoru, sa grafikonom i tabelom. |
+| `GET /api/reports/vehicle-services/pdf` | PDF "Izvještaj o vozilima i servisima". Filteri: `vehicleCategoryId`, `dateFrom`, `dateTo`. Servisna historija i troškovi po vozilu i po kategoriji. |
+| `GET /api/reports/lesson-status`, `GET /api/reports/vehicle-services` | Isti podaci kao JSON (sa istim filterima), da desktop aplikacija može nacrtati grafikon pored PDF-a. |
+
+Svi filteri su opcionalni; izostavljen datum ostavlja kraj perioda otvoren, a izostavljen `instructorId` / `vehicleCategoryId` znači "svi". PDF se generiše na serveru (QuestPDF), a svaka stranica ima naziv škole, vrijeme generisanja (UTC) i primijenjene filtere. Neispravan filter (npr. datum "do" prije datuma "od") vraća `400` sa porukom po polju.
+
 ## Plaćanje i povrat novca
 
-- **Paket obuke** se sastoji od tri stavke (Teorijska obuka 200 KM, Praktična vožnja 1200 KM, Administracija i ispit 150 KM). Svaka se plaća u 3 rate. Zaduženja se kreiraju pri prvom otvaranju ekrana "Finansije i plaćanje" (`GET /api/finance/my`).
+- **Paket obuke** se sastoji od tri stavke (Teorijska obuka 200 KM, Praktična vožnja 1200 KM, Administracija i ispit 150 KM). Svaka se plaća u 3 rate. Zaduženja se kreiraju zajedno sa učenikom (samostalna registracija, administratorov "Novi korisnik" i seed), u istoj transakciji kao korisnik i profil; `GET /api/finance/my` samo čita i ništa ne kreira. Baze napravljene prije ove izmjene nemaju zaduženja za postojeće učenike, pa ih treba ponovo napraviti (`docker compose down -v`).
 - **Dodatni časovi:** paket uključuje **30** praktičnih časova. Svaki potvrđen čas preko te kvote dobija vlastito zaduženje ("Dodatni čas vožnje", 40 KM, jedna rata) u istoj transakciji u kojoj se čas potvrđuje.
 - **Valuta:** sve se čuva i prikazuje u **KM**. PayPal ne podržava BAM, pa se iznos pretvara u EUR (fiksni kurs 1 EUR = 1.95583 KM, zaokruženo na 2 decimale) samo u trenutku poziva PayPal-a. Za povrat se koristi iznos koji je PayPal stvarno naplatio (`CapturedAmount`).
 - **Finalizacija plaćanja** je isključivo serverska: `POST /api/payments/{orderId}/capture` pita PayPal da li je kupac odobrio i naplatio uplatu. Ništa što pošalje klijent ne važi kao dokaz uplate. Webhook endpoint ne postoji. Ponovni poziv za istu narudžbu je siguran (vraća `alreadyProcessed: true`, bez ponovnih nuspojava).
@@ -106,7 +120,7 @@ Napomena: kao Adnan (učenik) isti čas ne možete otkazati uz povrat ako je do 
 dotnet test eAutoskola.Tests
 ```
 
-Pokrivaju preporuku lekcija (vektori, kosinusna sličnost, objašnjenja), pravila plaćanja (konverzija KM → EUR, podjela na rate, kvota, rok za povrat, ističanje narudžbi), tok kreiranja narudžbe / capture-a / povrata nad EF InMemory bazom sa mockiranim PayPal klijentom, te sam `PayPalClient` nad simuliranim PayPal odgovorima.
+Pokrivaju preporuku lekcija (vektori, kosinusna sličnost, objašnjenja), dashboard (agregacije, granice mjeseci i godine, keširanje), izvještaje (filteri, grupisanje, validacija, generisanje PDF-a), pravila plaćanja (konverzija KM → EUR, podjela na rate, kvota, rok za povrat, ističanje narudžbi), tok kreiranja narudžbe / capture-a / povrata nad EF InMemory bazom sa mockiranim PayPal klijentom, te sam `PayPalClient` nad simuliranim PayPal odgovorima.
 
 ## Dodatna dokumentacija
 

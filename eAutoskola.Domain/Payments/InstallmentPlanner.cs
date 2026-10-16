@@ -1,4 +1,4 @@
-namespace eAutoskola.Application.Payments;
+namespace eAutoskola.Domain.Payments;
 
 public static class InstallmentPlanner
 {

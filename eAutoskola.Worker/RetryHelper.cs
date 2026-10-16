@@ -3,8 +3,10 @@ using Microsoft.Extensions.Logging;
 namespace eAutoskola.Worker;
 
 /// <summary>
-/// Exponential backoff retry (1s -> 2s -> 4s -> 8s), per upute.md Appendix A.1. Never swallows
-/// an error in an empty catch - every retry and the final failure are logged.
+/// Exponential backoff retry (1s -> 2s -> 4s -> 8s), per upute.md Appendix A.1, used for
+/// processing a single message. The initial broker connection is NOT retried through this - it
+/// waits indefinitely (see RabbitMqConnectionProvider). Never swallows an error in an empty
+/// catch - every retry and the final failure are logged.
 /// </summary>
 public static class RetryHelper
 {

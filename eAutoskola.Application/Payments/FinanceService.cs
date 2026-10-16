@@ -1,34 +1,30 @@
 using eAutoskola.Domain.Entities;
 using eAutoskola.Domain.Enums;
-using eAutoskola.Domain.Payments;
 using eAutoskola.Domain.Resources;
 using eAutoskola.Domain.Security;
 using eAutoskola.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace eAutoskola.Application.Payments;
 
-/// <summary>Read side of the student's "Finansije i plaćanje" screen. Cancelled charges and
+/// <summary>Read side of the student's "Finansije i plaćanje" screen - it never creates or changes
+/// anything (package charges are created with the student, see PackageChargeProvisioner). Cancelled charges and
 /// installments (refunded or cancelled lessons) are excluded from the breakdown and the
 /// remaining balance; a refund shows up as its own line in the payment history.</summary>
 public class FinanceService
 {
     private readonly EAutoskolaDbContext _context;
     private readonly ICurrentUserService _currentUser;
-    private readonly ILogger<FinanceService> _logger;
 
-    public FinanceService(EAutoskolaDbContext context, ICurrentUserService currentUser, ILogger<FinanceService> logger)
+    public FinanceService(EAutoskolaDbContext context, ICurrentUserService currentUser)
     {
         _context = context;
         _currentUser = currentUser;
-        _logger = logger;
     }
 
     public async Task<FinanceSummaryDto> GetMyAsync(CancellationToken cancellationToken)
     {
         var studentId = _currentUser.UserId;
-        await EnsurePackageChargesAsync(studentId, cancellationToken);
 
         var charges = await _context.Charges.AsNoTracking()
             .Include(c => c.Installments)
@@ -106,59 +102,5 @@ public class FinanceService
             }));
 
         return history.OrderBy(h => h.DateUtc).ToList();
-    }
-
-    /// <summary>Package charges (theory, practical, administration) are created lazily the
-    /// first time a student opens the finance screen, so every way a student account comes
-    /// into existence (self-registration, admin-created, seeded) is covered without touching
-    /// those code paths.</summary>
-    private async Task EnsurePackageChargesAsync(int studentId, CancellationToken cancellationToken)
-    {
-        var existingServiceTypeIds = await _context.Charges
-            .Where(c => c.StudentId == studentId && c.LessonId == null)
-            .Select(c => c.ServiceTypeId)
-            .ToListAsync(cancellationToken);
-
-        var missing = await _context.ServiceTypes
-            .Where(s => ServiceTypeCodes.Package.Contains(s.Code) && !existingServiceTypeIds.Contains(s.Id))
-            .OrderBy(s => s.Id)
-            .ToListAsync(cancellationToken);
-        if (missing.Count == 0)
-        {
-            return;
-        }
-
-        var createdAt = DateTime.UtcNow;
-        foreach (var serviceType in missing)
-        {
-            var amounts = InstallmentPlanner.Split(serviceType.Price, PaymentConstants.PackageInstallmentCount);
-            _context.Charges.Add(new Charge
-            {
-                StudentId = studentId,
-                ServiceTypeId = serviceType.Id,
-                Amount = serviceType.Price,
-                Description = serviceType.Name,
-                CreatedAt = createdAt,
-                Installments = amounts.Select((amount, index) => new Installment
-                {
-                    Number = index + 1,
-                    Amount = amount,
-                    DueDate = createdAt.Date.AddDays(PaymentConstants.InstallmentIntervalDays * (index + 1)),
-                    CreatedAt = createdAt,
-                }).ToList(),
-            });
-        }
-
-        try
-        {
-            await _context.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException ex)
-        {
-            // A concurrent request provisioned the same charges first (unique index) - discard
-            // our attempt and read what it created.
-            _logger.LogInformation(ex, "Package charges for student {StudentId} were created concurrently", studentId);
-            _context.ChangeTracker.Clear();
-        }
     }
 }

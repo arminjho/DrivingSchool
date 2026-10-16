@@ -107,6 +107,8 @@ builder.Services.AddScoped<eAutoskola.Application.Tests.TestAttemptService>();
 builder.Services.AddScoped<eAutoskola.Application.StudyLessons.StudyLessonCrudService>();
 builder.Services.AddScoped<eAutoskola.Application.StudyLessons.StudyLessonSectionCrudService>();
 builder.Services.AddScoped<eAutoskola.Application.Recommendations.StudyRecommendationService>();
+builder.Services.AddScoped<eAutoskola.Application.Reports.DashboardService>();
+builder.Services.AddScoped<eAutoskola.Application.Reports.ReportService>();
 
 // --- SignalR (NotificationHub) ---
 builder.Services.AddSignalR();

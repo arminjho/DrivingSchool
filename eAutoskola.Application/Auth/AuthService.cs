@@ -9,6 +9,7 @@ using eAutoskola.Domain.Exceptions;
 using eAutoskola.Domain.Messaging;
 using eAutoskola.Domain.Security;
 using eAutoskola.Infrastructure.Database;
+using eAutoskola.Infrastructure.Payments;
 using eAutoskola.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 
@@ -74,17 +75,17 @@ public class AuthService : IAuthService
             LastName = request.LastName,
             PhoneNumber = request.PhoneNumber,
             CityId = request.CityId,
+            StudentProfile = new StudentProfile
+            {
+                VehicleCategoryId = request.VehicleCategoryId,
+                RegisteredAt = DateTime.UtcNow,
+            },
         };
 
+        // User, profile and package charges are saved together - a student never exists
+        // without them.
         _context.Users.Add(user);
-        await _context.SaveChangesAsync(cancellationToken);
-
-        _context.StudentProfiles.Add(new StudentProfile
-        {
-            UserId = user.Id,
-            VehicleCategoryId = request.VehicleCategoryId,
-            RegisteredAt = DateTime.UtcNow,
-        });
+        await PackageChargeProvisioner.AddPackageChargesAsync(_context, user, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
         return IssueAuthResponse(user);

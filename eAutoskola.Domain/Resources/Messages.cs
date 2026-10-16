@@ -41,6 +41,11 @@ public static class Messages
     public const string ExtraLessonPriceNotConfigured = "Cijena dodatnog časa nije podešena, nije moguće potvrditi čas.";
     public const string RefundLabel = "Povrat";
 
+    // --- Reports ---
+    public const string ReportDateRangeInvalid = "Datum „do” ne smije biti prije datuma „od”. Unesite datume u formatu DD.MM.GGGG.";
+    public const string ReportInstructorNotFound = "Odabrani instruktor ne postoji.";
+    public const string ReportVehicleCategoryNotFound = "Odabrana kategorija vozila ne postoji.";
+
     // --- File upload ---
     public const string InvalidFileType = "Dozvoljeni su samo fajlovi tipa JPG, PNG ili WEBP.";
     public const string FileTooLarge = "Fajl je prevelik. Maksimalna dozvoljena veličina je {0} MB.";

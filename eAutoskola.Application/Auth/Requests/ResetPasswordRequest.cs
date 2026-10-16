@@ -1,0 +1,9 @@
+namespace eAutoskola.Application.Auth.Requests;
+
+public class ResetPasswordRequest
+{
+    public required string Email { get; set; }
+    public required string Code { get; set; }
+    public required string NewPassword { get; set; }
+    public required string ConfirmNewPassword { get; set; }
+}

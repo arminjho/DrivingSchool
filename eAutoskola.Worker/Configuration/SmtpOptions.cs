@@ -13,6 +13,11 @@ public class SmtpOptions
     {
         Host = Require("SMTP_HOST");
         Port = int.TryParse(Environment.GetEnvironmentVariable("SMTP_PORT"), out var p) ? p : 587;
+        // TODO(config): for local dev, SMTP_HOST/PORT point at the mailhog container (set by
+        // docker-compose.yml) and SMTP_USERNAME/PASSWORD can stay as the .env.example
+        // placeholders since mailhog doesn't require auth. For a real send (outside Docker, or
+        // for the submission build), set a Mailtrap sandbox inbox (mailtrap.io) or a Gmail "app
+        // password" (myaccount.google.com/apppasswords - needs 2FA enabled) here instead.
         Username = Require("SMTP_USERNAME");
         Password = Require("SMTP_PASSWORD");
         UseSsl = bool.TryParse(Environment.GetEnvironmentVariable("SMTP_USE_SSL"), out var s) && s;

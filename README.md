@@ -2,12 +2,13 @@
 
 Sistem za upravljanje autoškolom (seminarski rad, Razvoj softvera II, FIT Mostar). Tri uloge: **Administrator** (desktop), **Učenik** (mobilna aplikacija) i **Instruktor** (mobilna aplikacija).
 
-> **Stanje projekta:** backend (API, Worker, baza, RabbitMQ) je implementiran i pokreće se kroz Docker. Flutter aplikacije u folderu `UI/` su za sada samo prazni projekti.
+> **Stanje projekta:** backend (API, Worker, baza, RabbitMQ) je implementiran i pokreće se kroz Docker. Flutter aplikacije u folderu `UI/` (`driving_school_desktop`, `driving_school_mobile`) imaju završen zajednički temelj (autentikacija, sesija, obavijesti u realnom vremenu, tema, validatori, ponovno upotrebljivi UI widgeti) i prijavu/početni ekran; konkretni ekrani za pojedinačne funkcionalnosti (CRUD, dashboard, izvještaji, časovi, plaćanje, testovi...) još nisu implementirani.
 
 ## Sadržaj
 
 - [Arhitektura](#arhitektura)
 - [Pokretanje](#pokretanje)
+- [Flutter aplikacije](#flutter-aplikacije)
 - [Korisnički podaci za pristup](#korisnički-podaci-za-pristup)
 - [Dashboard i izvještaji](#dashboard-i-izvještaji)
 - [Plaćanje i povrat novca](#plaćanje-i-povrat-novca)
@@ -53,6 +54,20 @@ Docker servisi: SQL Server (baza `210044`), RabbitMQ, MailHog (lokalni SMTP hvat
 | Swagger (samo `Development`) | http://localhost:5000/swagger |
 | MailHog (primljeni e-mailovi) | http://localhost:8025 |
 | RabbitMQ management | http://localhost:15672 (korisnik/lozinka iz `.env`) |
+
+## Flutter aplikacije
+
+`UI/driving_school_desktop` (Windows, Administrator) i `UI/driving_school_mobile` (Android, Učenik i Instruktor - jedna aplikacija, meni se prilagođava ulozi iz JWT tokena). Obje dijele isti obrazac: `lib/core/` (sesija, HTTP klijent, obavijesti, validatori), `lib/l10n/app_strings.dart` (sve vidljive poruke na bosanskom), `lib/widgets/ui/` (zajednički widgeti), tamna tema.
+
+```bash
+cd UI/driving_school_desktop   # ili UI/driving_school_mobile
+flutter pub get
+flutter analyze
+flutter test
+flutter run --dart-define=API_BASE_URL=http://localhost:5000   # desktop; mobilna aplikacija podrazumijeva http://10.0.2.2:5000 (Android emulator)
+```
+
+`API_BASE_URL` se čita isključivo preko `--dart-define`, nikad hardkodirano. Pokretanje Windows builda zahtijeva uključen Developer Mode (`start ms-settings:developers`) zbog symlink-ova koje koriste pluginovi.
 
 ## Korisnički podaci za pristup
 

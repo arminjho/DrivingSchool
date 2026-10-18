@@ -64,4 +64,11 @@ public class AuthController : ControllerBase
         await _authService.ResetPasswordAsync(request, cancellationToken);
         return NoContent();
     }
+
+    /// <summary>Cities + vehicle categories for the registration form's dropdowns - the only
+    /// reason any reference data needs to be reachable before login.</summary>
+    [HttpGet("register-lookups")]
+    [AllowAnonymous]
+    public async Task<ActionResult<RegisterLookupsDto>> GetRegisterLookups(CancellationToken cancellationToken)
+        => Ok(await _authService.GetRegisterLookupsAsync(cancellationToken));
 }

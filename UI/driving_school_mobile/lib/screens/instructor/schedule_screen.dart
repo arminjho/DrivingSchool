@@ -120,7 +120,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   Widget _dayCell(BuildContext context, DateTime date) {
     final c = context.colors;
     final isSelected = date.year == _selectedDate.year && date.month == _selectedDate.month && date.day == _selectedDate.day;
-    const dayLabels = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'];
 
     return InkWell(
       onTap: () => _selectDate(date),
@@ -129,7 +128,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         child: Column(
           children: [
-            Text(dayLabels[date.weekday - 1], style: context.text.labelSmall?.copyWith(color: c.textMuted)),
+            Text(AppStrings.dayAbbreviations[date.weekday - 1], style: context.text.labelSmall?.copyWith(color: c.textMuted)),
             const SizedBox(height: AppSpacing.xxs),
             Container(
               height: 34,

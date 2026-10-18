@@ -3,16 +3,14 @@ import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/auth_api.dart';
-import '../../core/auth_session.dart';
-import '../../core/base_provider.dart';
 import '../../core/design_tokens.dart';
 import '../../core/form_errors.dart';
 import '../../core/validators.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/city.dart';
+import '../../models/register_lookups.dart';
 import '../../models/vehicle_category.dart';
-import '../../providers/city_provider.dart';
-import '../../providers/vehicle_category_provider.dart';
+import '../../providers/register_lookups_api.dart';
 import '../../widgets/ui/api_dropdown_field.dart';
 import '../../widgets/ui/app_action_button.dart';
 import '../../widgets/ui/app_card.dart';
@@ -30,8 +28,8 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormBuilderState>();
-  late final CityProvider _cityProvider;
-  late final VehicleCategoryProvider _categoryProvider;
+  final _lookupsApi = RegisterLookupsApi();
+  late final Future<RegisterLookups> _lookupsFuture;
 
   bool _isSubmitting = false;
   String? _banner;
@@ -39,12 +37,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void initState() {
     super.initState();
-    // This screen only exists while signed out, so the shared session has no token - fine,
-    // since CityController/VehicleCategoryController allow anonymous reads specifically so the
-    // registration form can populate its dropdowns.
-    final session = context.read<AuthSession>();
-    _cityProvider = CityProvider(session);
-    _categoryProvider = VehicleCategoryProvider(session);
+    // This screen only exists while signed out - `RegisterLookupsApi` is the one deliberately
+    // anonymous endpoint built for exactly this (upute.md §5 keeps every other read/write behind
+    // a token).
+    _lookupsFuture = _lookupsApi.get();
   }
 
   Future<void> _submit() async {
@@ -124,7 +120,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   name: 'cityId',
                   label: AppStrings.fieldCity,
                   icon: Icons.location_city_outlined,
-                  loadItems: () async => (await _cityProvider.getPaged(const PagedQuery(pageSize: 100))).resultList,
+                  loadItems: () async => (await _lookupsFuture).cities,
                   idOf: (c) => c.id,
                   labelOf: (c) => c.name,
                 ),
@@ -133,7 +129,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   name: 'vehicleCategoryId',
                   label: AppStrings.fieldCategory,
                   icon: AppIcons.vehicle,
-                  loadItems: () async => (await _categoryProvider.getPaged(const PagedQuery(pageSize: 100))).resultList,
+                  loadItems: () async => (await _lookupsFuture).vehicleCategories,
                   idOf: (c) => c.id,
                   labelOf: (c) => '${c.code} — ${c.name}',
                   validator: AppValidators.requiredSelection<int>(),

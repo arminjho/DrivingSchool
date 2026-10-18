@@ -199,6 +199,10 @@ abstract final class AppStrings {
   static const String paymentCancelledMessage = 'Plaćanje je otkazano.';
   static const String paymentFailed = 'Plaćanje nije odobreno na PayPal-u. Pokušajte ponovo.';
   static const String refundLabel = 'Povrat';
+  static const String cannotOpenPayPal = 'Nije moguće otvoriti PayPal stranicu.';
+  static String cannotOpenPayPalWithReason(Object error) => 'Nije moguće otvoriti PayPal stranicu: $error';
+  static const String payPalOpensInBrowser = 'PayPal se otvara u pregledniku';
+  static const String reopenPayPal = 'Ponovo otvori PayPal';
 
   // --- Profile (4.2.11) ---
   static const String myProfile = 'Moj profil';
@@ -264,6 +268,7 @@ abstract final class AppStrings {
   static const String finishLessonAction = 'Završi čas';
   static const String lessonStartedMessage = 'Čas je započet.';
   static const String noLessonsForDate = 'Nemate časova za odabrani dan.';
+  static const List<String> dayAbbreviations = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'];
 
   // --- Lesson completion & grading (4.3.5) ---
   static const String completeLessonTitle = 'Završetak časa';

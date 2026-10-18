@@ -129,17 +129,17 @@ public static class DbSeeder
         var studentUsers = new[]
         {
             demoStudent,
-            new User { Email = "amina.hodzic@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Student, FirstName = "Amina", LastName = "Hodžić", PhoneNumber = "+387 61 123 456", CityId = sarajevo.Id },
+            new User { Email = "amina.hodzic@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Student, FirstName = "Amina", LastName = "Hodžić", PhoneNumber = "+387 61 123 456", CityId = sarajevo.Id, ProfileImagePath = CopySeedImage("profile-amina-hodzic.jpg") },
             new User { Email = "emir.mustafic@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Student, FirstName = "Emir", LastName = "Mustafić", PhoneNumber = "+387 61 234 567", CityId = mostar.Id },
             new User { Email = "lejla.basic@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Student, FirstName = "Lejla", LastName = "Bašić", PhoneNumber = "+387 61 345 678", CityId = sarajevo.Id },
-            new User { Email = "adnan.zukic@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Student, FirstName = "Adnan", LastName = "Zukić", PhoneNumber = "+387 61 456 789", CityId = mostar.Id },
+            new User { Email = "adnan.zukic@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Student, FirstName = "Adnan", LastName = "Zukić", PhoneNumber = "+387 61 456 789", CityId = mostar.Id, ProfileImagePath = CopySeedImage("profile-adnan-zukic.jpg") },
         };
 
         var instructorUsers = new[]
         {
             demoInstructor,
-            new User { Email = "damir.kovacevic@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Instructor, FirstName = "Damir", LastName = "Kovačević", PhoneNumber = "+387 61 654 321", CityId = sarajevo.Id },
-            new User { Email = "sanja.peric@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Instructor, FirstName = "Sanja", LastName = "Perić", PhoneNumber = "+387 61 765 432", CityId = mostar.Id },
+            new User { Email = "damir.kovacevic@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Instructor, FirstName = "Damir", LastName = "Kovačević", PhoneNumber = "+387 61 654 321", CityId = sarajevo.Id, ProfileImagePath = CopySeedImage("profile-damir-kovacevic.jpg") },
+            new User { Email = "sanja.peric@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Instructor, FirstName = "Sanja", LastName = "Perić", PhoneNumber = "+387 61 765 432", CityId = mostar.Id, ProfileImagePath = CopySeedImage("profile-sanja-peric.jpg") },
         };
 
         context.Users.Add(admin);
@@ -169,9 +169,9 @@ public static class DbSeeder
 
         var vehicles = new[]
         {
-            new Vehicle { RegistrationNumber = "E22-A-123", Make = "VW", Model = "Polo", VehicleCategoryId = categoryB.Id, ManufactureYear = 2021, Status = VehicleStatus.Active },
-            new Vehicle { RegistrationNumber = "E54-K-456", Make = "Škoda", Model = "Octavia", VehicleCategoryId = categoryB.Id, ManufactureYear = 2020, Status = VehicleStatus.Active },
-            new Vehicle { RegistrationNumber = "E88-M-789", Make = "Ford", Model = "Focus", VehicleCategoryId = categoryB.Id, ManufactureYear = 2019, Status = VehicleStatus.InService },
+            new Vehicle { RegistrationNumber = "E22-A-123", Make = "VW", Model = "Polo", VehicleCategoryId = categoryB.Id, ManufactureYear = 2021, Status = VehicleStatus.Active, ImagePath = CopySeedImage("vehicle-vw-polo.jpg") },
+            new Vehicle { RegistrationNumber = "E54-K-456", Make = "Škoda", Model = "Octavia", VehicleCategoryId = categoryB.Id, ManufactureYear = 2020, Status = VehicleStatus.Active, ImagePath = CopySeedImage("vehicle-skoda-octavia.jpg") },
+            new Vehicle { RegistrationNumber = "E88-M-789", Make = "Ford", Model = "Focus", VehicleCategoryId = categoryB.Id, ManufactureYear = 2019, Status = VehicleStatus.InService, ImagePath = CopySeedImage("vehicle-ford-focus.jpg") },
             new Vehicle { RegistrationNumber = "E31-T-321", Make = "Mercedes", Model = "Sprinter", VehicleCategoryId = categoryC.Id, ManufactureYear = 2022, Status = VehicleStatus.Active },
             new Vehicle { RegistrationNumber = "E33-B-654", Make = "VW", Model = "Crafter", VehicleCategoryId = categoryD.Id, ManufactureYear = 2021, Status = VehicleStatus.Active },
         };
@@ -423,9 +423,9 @@ public static class DbSeeder
 
         var signsQuestions = new[]
         {
-            BuildQuestion(signsTest.Id, signsArea.Id, "Koji znak označava obavezno skretanje udesno?", ["Zabrana skretanja", "Obavezno skretanje udesno", "Jednosmjerni saobraćaj", "Opasna krivina"], 1),
-            BuildQuestion(signsTest.Id, signsArea.Id, "Šta označava trougaoni znak sa crvenim okvirom?", ["Obavezu", "Zabranu", "Opasnost", "Obavještenje"], 2),
-            BuildQuestion(signsTest.Id, signsArea.Id, "Okrugli znak sa plavom pozadinom označava:", ["Zabranu", "Opasnost", "Obavezu", "Prvenstvo prolaza"], 2),
+            BuildQuestion(signsTest.Id, signsArea.Id, "Koji znak označava obavezno skretanje udesno?", ["Zabrana skretanja", "Obavezno skretanje udesno", "Jednosmjerni saobraćaj", "Opasna krivina"], 1, CopySeedImage("sign-mandatory-right-turn.png")),
+            BuildQuestion(signsTest.Id, signsArea.Id, "Šta označava trougaoni znak sa crvenim okvirom?", ["Obavezu", "Zabranu", "Opasnost", "Obavještenje"], 2, CopySeedImage("sign-no-entry.png")),
+            BuildQuestion(signsTest.Id, signsArea.Id, "Okrugli znak sa plavom pozadinom označava:", ["Zabranu", "Opasnost", "Obavezu", "Prvenstvo prolaza"], 2, CopySeedImage("sign-roundabout.png")),
             BuildQuestion(signsTest.Id, signsArea.Id, "Znak 'Stop' zahtijeva:", ["Usporavanje", "Potpuno zaustavljanje", "Promjenu trake", "Ubrzanje"], 1),
             BuildQuestion(signsTest.Id, signsArea.Id, "Dopunska tabla ispod znaka obično označava:", ["Dodatno pojašnjenje znaka", "Novi znak", "Prestanak važenja prethodnog znaka", "Ništa posebno"], 0),
         };
@@ -477,10 +477,26 @@ public static class DbSeeder
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    private static (Question Question, AnswerOption[] Options) BuildQuestion(int testId, int questionAreaId, string text, string[] optionTexts, int correctIndex)
+    private static (Question Question, AnswerOption[] Options) BuildQuestion(int testId, int questionAreaId, string text, string[] optionTexts, int correctIndex, string? imagePath = null)
     {
-        var question = new Question { Text = text, QuestionAreaId = questionAreaId, TestId = testId };
+        var question = new Question { Text = text, QuestionAreaId = questionAreaId, TestId = testId, ImagePath = imagePath };
         var options = optionTexts.Select((t, i) => new AnswerOption { Text = t, IsCorrect = i == correctIndex }).ToArray();
         return (question, options);
+    }
+
+    /// <summary>Copies a placeholder image from the build output's SeedAssets (see
+    /// eAutoskola.Infrastructure.csproj) into ./uploads, the same folder `FileStorageService`
+    /// serves real uploads from, and returns the path exactly as that service would
+    /// (upute.md §3.1: "Seed mora sadržavati i slike ako domena koristi slike.").</summary>
+    private static string CopySeedImage(string fileName)
+    {
+        var source = Path.Combine(AppContext.BaseDirectory, "SeedAssets", fileName);
+        var uploadsDir = Path.Combine("uploads", "seed");
+        Directory.CreateDirectory(uploadsDir);
+
+        var destination = Path.Combine(uploadsDir, fileName);
+        File.Copy(source, destination, overwrite: true);
+
+        return destination.Replace('\\', '/');
     }
 }

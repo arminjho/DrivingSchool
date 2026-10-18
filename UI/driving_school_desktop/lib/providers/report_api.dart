@@ -30,15 +30,13 @@ class ReportApi {
 
   Future<T> _getJson<T>(Uri uri, T Function(Map<String, dynamic>) fromJson) async {
     final response = await apiGet(uri, headers: _authHeaders());
-    if (response.statusCode == 401) _session.clear();
-    if (response.statusCode < 200 || response.statusCode >= 300) throw BaseProvider.parseError(response);
+    BaseProvider.ensureOk(response, _session);
     return fromJson(jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>);
   }
 
   Future<List<int>> _getPdf(Uri uri) async {
     final response = await apiGet(uri, headers: _authHeaders(), timeout: const Duration(seconds: 60));
-    if (response.statusCode == 401) _session.clear();
-    if (response.statusCode < 200 || response.statusCode >= 300) throw BaseProvider.parseError(response);
+    BaseProvider.ensureOk(response, _session);
     return response.bodyBytes;
   }
 

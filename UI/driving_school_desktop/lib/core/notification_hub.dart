@@ -107,7 +107,6 @@ class SignalRNotificationHub implements NotificationHub {
   @override
   Future<void> dispose() async {
     await stop();
-    await _notifications.close();
-    await _connection.close();
+    await (_notifications.close(), _connection.close()).wait;
   }
 }

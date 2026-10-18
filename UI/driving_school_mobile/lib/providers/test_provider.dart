@@ -34,8 +34,7 @@ class TestProvider {
   }
 
   dynamic _decode(http.Response response) {
-    if (response.statusCode == 401) _session.clear();
-    if (response.statusCode < 200 || response.statusCode >= 300) throw BaseProvider.parseError(response);
+    BaseProvider.ensureOk(response, _session);
     return jsonDecode(utf8.decode(response.bodyBytes));
   }
 }

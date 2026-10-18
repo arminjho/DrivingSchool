@@ -20,15 +20,13 @@ class MeApi {
 
   Future<User> getMe() async {
     final response = await apiGet(ApiConfig.uri('api/me'), headers: _authHeaders());
-    if (response.statusCode == 401) _session.clear();
-    if (response.statusCode < 200 || response.statusCode >= 300) throw BaseProvider.parseError(response);
+    BaseProvider.ensureOk(response, _session);
     return User.fromJson(jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>);
   }
 
   Future<User> updateMe(Map<String, dynamic> request) async {
     final response = await apiPut(ApiConfig.uri('api/me'), headers: _authHeaders(), body: jsonEncode(request));
-    if (response.statusCode == 401) _session.clear();
-    if (response.statusCode < 200 || response.statusCode >= 300) throw BaseProvider.parseError(response);
+    BaseProvider.ensureOk(response, _session);
     return User.fromJson(jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>);
   }
 
@@ -38,7 +36,6 @@ class MeApi {
       headers: _authHeaders(),
       body: jsonEncode({'oldPassword': oldPassword, 'newPassword': newPassword, 'confirmNewPassword': confirmNewPassword}),
     );
-    if (response.statusCode == 401) _session.clear();
-    if (response.statusCode < 200 || response.statusCode >= 300) throw BaseProvider.parseError(response);
+    BaseProvider.ensureOk(response, _session);
   }
 }

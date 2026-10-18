@@ -74,6 +74,7 @@ abstract final class AppStrings {
   static const String dashboardTodayLessons = 'Predstojeći časovi danas';
   static const String dashboardTodayLessonsEmpty = 'Danas nema zakazanih časova.';
   static const String dashboardLoadFailed = 'Dashboard nije učitan';
+  static const List<String> monthAbbreviations = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec'];
 
   // --- Users ---
   static const String usersTitle = 'Korisnici';

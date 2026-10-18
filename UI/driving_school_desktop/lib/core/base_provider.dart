@@ -96,6 +96,16 @@ abstract class BaseProvider<T> {
     throw parseError(response);
   }
 
+  /// The same 401/error handling as [decode], exposed statically for the API classes that
+  /// aren't a CRUD resource (so don't extend [BaseProvider]) but still need it - one place for
+  /// "clear the session on 401, otherwise throw the parsed error" instead of each call site
+  /// repeating those two lines.
+  static void ensureOk(http.Response response, AuthSession session) {
+    if (response.statusCode >= 200 && response.statusCode < 300) return;
+    if (response.statusCode == 401) session.clear();
+    throw parseError(response);
+  }
+
   static ApiException parseError(http.Response response) {
     final fieldErrors = <String, List<String>>{};
     String? serverMessage;

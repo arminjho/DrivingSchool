@@ -24,8 +24,7 @@ class FilesApi {
       return http.Response.fromStream(response);
     });
 
-    if (streamed.statusCode == 401) _session.clear();
-    if (streamed.statusCode < 200 || streamed.statusCode >= 300) throw BaseProvider.parseError(streamed);
+    BaseProvider.ensureOk(streamed, _session);
 
     final body = jsonDecode(utf8.decode(streamed.bodyBytes)) as Map<String, dynamic>;
     return body['path'] as String;

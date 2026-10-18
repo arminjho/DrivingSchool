@@ -2,13 +2,14 @@
 
 Sistem za upravljanje autoškolom (seminarski rad, Razvoj softvera II, FIT Mostar). Tri uloge: **Administrator** (desktop), **Učenik** (mobilna aplikacija) i **Instruktor** (mobilna aplikacija).
 
-> **Stanje projekta:** backend (API, Worker, baza, RabbitMQ) je implementiran i pokreće se kroz Docker. Flutter aplikacije u folderu `UI/` (`driving_school_desktop`, `driving_school_mobile`) imaju završen zajednički temelj (autentikacija, sesija, obavijesti u realnom vremenu, tema, validatori, ponovno upotrebljivi UI widgeti) i prijavu/početni ekran; konkretni ekrani za pojedinačne funkcionalnosti (CRUD, dashboard, izvještaji, časovi, plaćanje, testovi...) još nisu implementirani.
+> **Stanje projekta:** aplikacija je kompletna i funkcionalna. Backend (API, Worker, baza, RabbitMQ) se pokreće kroz Docker. Desktop aplikacija (Administrator) ima Dashboard, upravljanje korisnicima, voznim parkom, izvještaje, referentne podatke, testove/pitanja, lekcije i pregled časova. Mobilna aplikacija (Učenik i Instruktor, jedna aplikacija, meni se prilagođava ulozi) ima registraciju/prijavu/reset lozinke, zakazivanje časova, historiju časova, finansije i plaćanje preko PayPal-a, probne testove, lekcije i preporuke, te - za instruktora - zahtjeve za časove, raspored i ocjenjivanje.
 
 ## Sadržaj
 
 - [Arhitektura](#arhitektura)
 - [Pokretanje](#pokretanje)
 - [Flutter aplikacije](#flutter-aplikacije)
+- [Nazivi entiteta](#nazivi-entiteta)
 - [Korisnički podaci za pristup](#korisnički-podaci-za-pristup)
 - [Dashboard i izvještaji](#dashboard-i-izvještaji)
 - [Plaćanje i povrat novca](#plaćanje-i-povrat-novca)
@@ -32,13 +33,14 @@ Docker servisi: SQL Server (baza `210044`), RabbitMQ, MailHog (lokalni SMTP hvat
 
 ## Pokretanje
 
-**Preduvjeti:** Docker Desktop. (Za pokretanje testova van Dockera: .NET 10 SDK.)
+**Preduvjeti:** Docker Desktop. (Za pokretanje testova van Dockera: .NET 10 SDK, Flutter.)
 
-1. Kopirajte `.env.example` u `.env`.
-2. U `.env` zamijenite sve `__REPLACE_ME_*__` vrijednosti (lozinka baze, JWT ključ, RabbitMQ korisnik/lozinka, SMTP, PayPal). Fajl `.env` je u `.gitignore` i ne smije se commitati.
-   - `DB_CONNECTION_STRING` i `DB_SA_PASSWORD` moraju koristiti istu lozinku.
-   - Za pregled u Swagger-u postavite `ASPNETCORE_ENVIRONMENT=Development`.
-3. Pokrenite sve servise:
+1. Postavite `.env` u korijenu repozitorija (isti folder kao `docker-compose.yml`), na jedan od dva načina:
+   - **Pregled rada (predati repozitorij):** u repozitoriju se nalazi `.env-tajne.zip` umjesto `.env` fajla (upute.md §9.2 - konfiguracijski fajlovi sa tajnama se ne commitaju u plain-textu). Raspakujte ga šifrom koja je predata na DL sistemu (podrazumijevano `fit`) u korijen repozitorija - raspakivanje mora dati fajl `.env` tačno u istom folderu u kojem se nalazi `.env-tajne.zip`. Nakon toga nastavite na korak 2.
+   - **Samostalni razvoj (vlastiti clone, bez `.env-tajne.zip`):** kopirajte `.env.example` u `.env`, pa u njemu zamijenite sve `__REPLACE_ME_*__` vrijednosti (lozinka baze, JWT ključ, RabbitMQ korisnik/lozinka, SMTP, PayPal). Fajl `.env` je u `.gitignore` i ne smije se commitati.
+     - `DB_CONNECTION_STRING` i `DB_SA_PASSWORD` moraju koristiti istu lozinku.
+     - Za pregled u Swagger-u postavite `ASPNETCORE_ENVIRONMENT=Development`.
+2. Pokrenite sve servise:
 
    ```bash
    docker compose up -d --build
@@ -64,10 +66,42 @@ cd UI/driving_school_desktop   # ili UI/driving_school_mobile
 flutter pub get
 flutter analyze
 flutter test
-flutter run --dart-define=API_BASE_URL=http://localhost:5000   # desktop; mobilna aplikacija podrazumijeva http://10.0.2.2:5000 (Android emulator)
 ```
 
-`API_BASE_URL` se čita isključivo preko `--dart-define`, nikad hardkodirano. Pokretanje Windows builda zahtijeva uključen Developer Mode (`start ms-settings:developers`) zbog symlink-ova koje koriste pluginovi.
+Pokretanje desktop aplikacije (Windows):
+
+```bash
+flutter run -d windows --dart-define=API_BASE_URL=http://localhost:5000
+```
+
+Pokretanje mobilne aplikacije (Android emulator - `10.0.2.2` je standardna adresa emulatora za host mašinu):
+
+```bash
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5000
+```
+
+`API_BASE_URL` se čita isključivo preko `--dart-define` (`String.fromEnvironment('API_BASE_URL')`), nikad hardkodirano. Pokretanje Windows builda zahtijeva uključen Developer Mode (`start ms-settings:developers`) zbog symlink-ova koje koriste pluginovi.
+
+## Nazivi entiteta
+
+Programski kod i baza podataka su u potpunosti na engleskom (klase, tabele, kolone, rute,
+poruke) - u skladu sa upute.md §3.4/CLAUDE.md §3; na bosanskom je samo tekst koji korisnik
+stvarno vidi (UI, poruke, PDF, e-mail), centralizovan u `lib/l10n/app_strings.dart` (oba Flutter
+projekta) i `eAutoskola.Domain/Resources/Messages.cs` (backend). Ispod je mapiranje nekoliko
+ključnih naziva iz odobrene prijave na njihove engleske nazive u kodu:
+
+| Naziv iz prijave (Bosanski) | Naziv u kodu |
+|---|---|
+| Čas (vožnje) | `Lesson` |
+| Vozilo | `Vehicle` |
+| Rezultat testa / Pokušaj testa | `TestAttempt` |
+| Pitanje | `Question` |
+| Lekcija | `StudyLesson` |
+| Rata | `Installment` |
+| Uplata | `Payment` |
+| Povrat | `Refund` |
+
+Kompletan rječnik (uloge, referentni podaci, notifikacije, itd.) je u `CLAUDE.md` §3.
 
 ## Korisnički podaci za pristup
 

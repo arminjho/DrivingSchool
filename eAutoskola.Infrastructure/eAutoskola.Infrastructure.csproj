@@ -5,6 +5,13 @@
     <ProjectReference Include="..\eAutoskola.Contracts\eAutoskola.Contracts.csproj" />
   </ItemGroup>
 
+  <!-- Seed-only placeholder images (vehicles, profiles, test-question signs) - copied into the
+       build/publish output so DbSeeder can copy them into ./uploads at first run
+       (upute.md §3.1: "Seed mora sadržavati i slike ako domena koristi slike."). -->
+  <ItemGroup>
+    <None Include="SeedAssets\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
     <PackageReference Include="DotNetEnv" Version="3.1.1" />

@@ -112,9 +112,9 @@ class _ExternalBrowserApprovalState extends State<_ExternalBrowserApproval> {
     try {
       final launched = await launchUrl(Uri.parse(widget.approvalUrl), mode: LaunchMode.externalApplication);
       if (!mounted) return;
-      setState(() => launched ? _opened = true : _launchError = 'Nije moguće otvoriti PayPal stranicu.');
+      setState(() => launched ? _opened = true : _launchError = AppStrings.cannotOpenPayPal);
     } on Object catch (error) {
-      if (mounted) setState(() => _launchError = 'Nije moguće otvoriti PayPal stranicu: $error');
+      if (mounted) setState(() => _launchError = AppStrings.cannotOpenPayPalWithReason(error));
     }
   }
 
@@ -130,12 +130,12 @@ class _ExternalBrowserApprovalState extends State<_ExternalBrowserApproval> {
           children: [
             Icon(Icons.open_in_new_rounded, size: 44, color: c.textMuted),
             const SizedBox(height: AppSpacing.md),
-            Text('PayPal se otvara u pregledniku', textAlign: TextAlign.center, style: context.text.titleMedium),
+            Text(AppStrings.payPalOpensInBrowser, textAlign: TextAlign.center, style: context.text.titleMedium),
             const SizedBox(height: AppSpacing.xl),
             FilledButton.icon(
               onPressed: _open,
               icon: const Icon(Icons.open_in_new_rounded, size: 18),
-              label: Text(_opened ? 'Ponovo otvori PayPal' : AppStrings.payWithPayPal),
+              label: Text(_opened ? AppStrings.reopenPayPal : AppStrings.payWithPayPal),
             ),
             if (_launchError != null) ...[
               const SizedBox(height: AppSpacing.sm),

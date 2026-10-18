@@ -111,7 +111,12 @@ public class DashboardService
     /// vehicle services and new users - so the feed shows the newest overall, whichever kind.</summary>
     private async Task<List<RecentActivityDto>> GetRecentActivityAsync(CancellationToken cancellationToken)
     {
-        var requests = await _context.Lessons.AsNoTracking()
+        // IgnoreQueryFilters(): this is a feed of the most recent events system-wide, not a
+        // listing of currently-active students/instructors/vehicles. A student, instructor or
+        // vehicle referenced by a recent event may since have been soft-deleted (User/Vehicle's
+        // own IsDeleted filter) - that must not silently drop the event from the feed or shrink
+        // it below RecentActivityCount (docs/BACKLOG.md "Phase 17 audit").
+        var requests = await _context.Lessons.IgnoreQueryFilters().AsNoTracking()
             .OrderByDescending(l => l.CreatedAt)
             .Take(RecentActivityCount)
             .Select(l => new
@@ -123,7 +128,7 @@ public class DashboardService
             .ToListAsync(cancellationToken);
 
         // From == To rows are reschedules/notes, not decisions; a Pending target can't be a decision either.
-        var decisions = await _context.LessonStatusHistories.AsNoTracking()
+        var decisions = await _context.LessonStatusHistories.IgnoreQueryFilters().AsNoTracking()
             .Where(h => h.FromStatus != h.ToStatus && h.ToStatus != LessonStatus.Pending)
             .OrderByDescending(h => h.ChangedAt)
             .Take(RecentActivityCount)
@@ -136,7 +141,7 @@ public class DashboardService
             })
             .ToListAsync(cancellationToken);
 
-        var services = await _context.VehicleServices.AsNoTracking()
+        var services = await _context.VehicleServices.IgnoreQueryFilters().AsNoTracking()
             .OrderByDescending(s => s.CreatedAt)
             .Take(RecentActivityCount)
             .Select(s => new { s.CreatedAt, s.Vehicle!.RegistrationNumber, ServiceType = s.VehicleServiceType!.Name, s.ServiceDate })

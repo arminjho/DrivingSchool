@@ -10,4 +10,5 @@ public interface IAuthService
     Task LogoutAsync(string jti, DateTime expiresAtUtc, CancellationToken cancellationToken = default);
     Task ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default);
     Task ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default);
+    Task<RegisterLookupsDto> GetRegisterLookupsAsync(CancellationToken cancellationToken = default);
 }

@@ -48,8 +48,7 @@ class InstructorApi {
   Future<List<Lesson>> getSchedule(DateTime date) async {
     final isoDate = '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     final response = await apiGet(ApiConfig.uri('api/instructors/schedule', {'date': isoDate}), headers: _authHeaders());
-    if (response.statusCode == 401) _session.clear();
-    if (response.statusCode < 200 || response.statusCode >= 300) throw BaseProvider.parseError(response);
+    BaseProvider.ensureOk(response, _session);
     final decoded = jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>;
     return decoded.map((item) => Lesson.fromJson(item as Map<String, dynamic>)).toList();
   }
@@ -60,8 +59,7 @@ class InstructorApi {
   }
 
   Map<String, dynamic> _decodeMap(http.Response response) {
-    if (response.statusCode == 401) _session.clear();
-    if (response.statusCode < 200 || response.statusCode >= 300) throw BaseProvider.parseError(response);
+    BaseProvider.ensureOk(response, _session);
     return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
   }
 }

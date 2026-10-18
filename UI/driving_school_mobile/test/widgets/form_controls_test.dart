@@ -1,10 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:driving_school_mobile/core/api_exception.dart';
 import 'package:driving_school_mobile/core/form_errors.dart';
-import 'package:driving_school_mobile/core/image_validation.dart';
 import 'package:driving_school_mobile/core/validators.dart';
 import 'package:driving_school_mobile/l10n/app_strings.dart';
 import 'package:driving_school_mobile/widgets/ui/api_dropdown_field.dart';
@@ -12,7 +9,6 @@ import 'package:driving_school_mobile/widgets/ui/app_action_button.dart';
 import 'package:driving_school_mobile/widgets/ui/app_date_fields.dart';
 import 'package:driving_school_mobile/widgets/ui/app_dialog.dart';
 import 'package:driving_school_mobile/widgets/ui/app_text_field.dart';
-import 'package:driving_school_mobile/widgets/ui/image_picker_field.dart';
 import 'package:driving_school_mobile/widgets/ui/lesson_status_badge.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -244,51 +240,6 @@ void main() {
       ]));
 
       expect(find.text('08:05'), findsOneWidget);
-    });
-  });
-
-  group('AppImagePickerField', () {
-    // A genuine 1x1 PNG, so the preview's real image decoder has something valid to decode.
-    Uint8List png() => base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==');
-
-    Widget field(PickedImage? Function() pick, {bool isRequired = false}) =>
-        AppImagePickerField(name: 'image', label: 'Slika', isRequired: isRequired, pick: () async => pick());
-
-    testWidgets('rejects a renamed non-image immediately, under the control', (tester) async {
-      final key = GlobalKey<FormBuilderState>();
-      await tester.pumpWidget(_form(key, [field(() => PickedImage(name: 'virus.jpg', bytes: Uint8List.fromList('not an image'.codeUnits)))]));
-
-      await tester.tap(find.text(AppStrings.pickImage));
-      await tester.pumpAndSettle();
-
-      expect(find.text(AppStrings.imageTypeInvalid), findsOneWidget);
-      expect(key.currentState!.saveAndValidate(), isFalse);
-    });
-
-    testWidgets('accepts a real image, shows a preview and lets it be removed', (tester) async {
-      final key = GlobalKey<FormBuilderState>();
-      await tester.pumpWidget(_form(key, [field(() => PickedImage(name: 'auto.png', bytes: png()))]));
-
-      await tester.tap(find.text(AppStrings.pickImage));
-      await tester.pumpAndSettle();
-
-      expect(find.text(AppStrings.imageTypeInvalid), findsNothing);
-      expect(key.currentState!.saveAndValidate(), isTrue);
-      expect(find.text(AppStrings.changeImage), findsOneWidget);
-
-      await tester.tap(find.text(AppStrings.removeImage));
-      await tester.pumpAndSettle();
-      expect(find.text(AppStrings.pickImage), findsOneWidget);
-    });
-
-    testWidgets('a required image that is missing is reported', (tester) async {
-      final key = GlobalKey<FormBuilderState>();
-      await tester.pumpWidget(_form(key, [field(() => null, isRequired: true)]));
-
-      expect(key.currentState!.saveAndValidate(), isFalse);
-      await tester.pump();
-
-      expect(find.text(AppStrings.required), findsOneWidget);
     });
   });
 

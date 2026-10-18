@@ -41,8 +41,7 @@ class TestAttemptApi {
   }
 
   T _decode<T>(http.Response response, T Function(Map<String, dynamic>) fromJson) {
-    if (response.statusCode == 401) _session.clear();
-    if (response.statusCode < 200 || response.statusCode >= 300) throw BaseProvider.parseError(response);
+    BaseProvider.ensureOk(response, _session);
     return fromJson(jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>);
   }
 }

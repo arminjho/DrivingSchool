@@ -20,8 +20,7 @@ class FinanceApi {
 
   Future<FinanceSummary> getMy() async {
     final response = await apiGet(ApiConfig.uri('api/finance/my'), headers: _authHeaders());
-    if (response.statusCode == 401) _session.clear();
-    if (response.statusCode < 200 || response.statusCode >= 300) throw BaseProvider.parseError(response);
+    BaseProvider.ensureOk(response, _session);
     return FinanceSummary.fromJson(jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>);
   }
 }

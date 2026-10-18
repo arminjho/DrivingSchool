@@ -37,8 +37,7 @@ class MeApi {
       headers: _authHeaders(),
       body: jsonEncode({'oldPassword': oldPassword, 'newPassword': newPassword, 'confirmNewPassword': confirmNewPassword}),
     );
-    if (response.statusCode == 401) _session.clear();
-    if (response.statusCode < 200 || response.statusCode >= 300) throw BaseProvider.parseError(response);
+    BaseProvider.ensureOk(response, _session);
   }
 
   Future<User> uploadProfileImage(PickedImage image) async {
@@ -57,8 +56,7 @@ class MeApi {
   static Uri urlFor(String relativePath) => ApiConfig.uri('api/files', {'path': relativePath});
 
   User _decodeUser(http.Response response) {
-    if (response.statusCode == 401) _session.clear();
-    if (response.statusCode < 200 || response.statusCode >= 300) throw BaseProvider.parseError(response);
+    BaseProvider.ensureOk(response, _session);
     return User.fromJson(jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>);
   }
 }

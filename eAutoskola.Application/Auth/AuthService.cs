@@ -2,6 +2,8 @@ using System.Security.Cryptography;
 using eAutoskola.Application.Auth.Dto;
 using eAutoskola.Application.Auth.Requests;
 using eAutoskola.Application.Common;
+using eAutoskola.Application.ReferenceData.Cities;
+using eAutoskola.Application.ReferenceData.VehicleCategories;
 using eAutoskola.Domain.Resources;
 using eAutoskola.Contracts.Messaging;
 using eAutoskola.Domain.Entities;
@@ -187,4 +189,23 @@ public class AuthService : IAuthService
     /// <summary>Cryptographically random 6-digit code - never System.Random
     /// (upute.md Appendix A.3).</summary>
     private static string GenerateResetCode() => RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString();
+
+    /// <summary>The two reference-data lists the registration form needs before it has a token.
+    /// A small bounded reference set (same as every dropdown elsewhere in the app), so returning
+    /// it in full needs no paging.</summary>
+    public async Task<RegisterLookupsDto> GetRegisterLookupsAsync(CancellationToken cancellationToken = default)
+    {
+        var cities = await _context.Cities
+            .Include(c => c.Country)
+            .OrderBy(c => c.Name)
+            .Select(c => new CityDto { Id = c.Id, Name = c.Name, PostalCode = c.PostalCode, CountryId = c.CountryId, CountryName = c.Country!.Name })
+            .ToListAsync(cancellationToken);
+
+        var vehicleCategories = await _context.VehicleCategories
+            .OrderBy(c => c.Code)
+            .Select(c => new VehicleCategoryDto { Id = c.Id, Code = c.Code, Name = c.Name, Description = c.Description })
+            .ToListAsync(cancellationToken);
+
+        return new RegisterLookupsDto { Cities = cities, VehicleCategories = vehicleCategories };
+    }
 }

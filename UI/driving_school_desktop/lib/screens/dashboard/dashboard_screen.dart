@@ -30,10 +30,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  static const _monthAbbrev = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec',
-  ];
-
   late final DashboardApi _api;
   Dashboard? _dashboard;
   String? _error;
@@ -107,7 +103,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: dashboard.completedLessonsPerMonth.isEmpty
                     ? const AppEmptyState(icon: Icons.bar_chart_rounded, title: AppStrings.emptyTitle, message: AppStrings.emptyMessage)
                     : AppBarChart(
-                        labels: [for (final m in dashboard.completedLessonsPerMonth) _monthAbbrev[m.month - 1]],
+                        labels: [for (final m in dashboard.completedLessonsPerMonth) AppStrings.monthAbbreviations[m.month - 1]],
                         series: [AppChartSeries(name: AppStrings.navLessons, values: [for (final m in dashboard.completedLessonsPerMonth) m.count.toDouble()])],
                       ),
               );

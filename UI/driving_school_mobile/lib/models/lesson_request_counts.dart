@@ -1,4 +1,5 @@
-/// Mirrors the backend's `LessonRequestCountsDto`.
+/// Mirrors the backend's `LessonRequestCountsDto` - counts behind each filter chip on
+/// 4.3.2 (Sve / Na čekanju / Odobreni / Odbijeni).
 class LessonRequestCounts {
   final int all;
   final int pending;

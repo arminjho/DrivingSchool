@@ -5,6 +5,8 @@ class Lesson {
   final int id;
   final int studentId;
   final String studentFullName;
+  final String studentEmail;
+  final String studentPhoneNumber;
   final int instructorId;
   final String instructorFullName;
   final int? vehicleId;
@@ -29,6 +31,8 @@ class Lesson {
     required this.id,
     required this.studentId,
     required this.studentFullName,
+    required this.studentEmail,
+    required this.studentPhoneNumber,
     required this.instructorId,
     required this.instructorFullName,
     this.vehicleId,
@@ -54,6 +58,8 @@ class Lesson {
       id: json['id'] as int,
       studentId: json['studentId'] as int,
       studentFullName: json['studentFullName'] as String,
+      studentEmail: json['studentEmail'] as String,
+      studentPhoneNumber: json['studentPhoneNumber'] as String,
       instructorId: json['instructorId'] as int,
       instructorFullName: json['instructorFullName'] as String,
       vehicleId: json['vehicleId'] as int?,

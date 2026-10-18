@@ -52,8 +52,27 @@ Future<http.Response> _quietApi(http.Request request) async {
   final path = request.url.path;
   if (path.endsWith('unread-count')) return jsonResponse(2);
   if (path.endsWith('logout')) return http.Response('', 204);
+  if (path.endsWith('dashboard')) return jsonResponse(_dashboardJson);
   return jsonResponse({'resultList': [notificationJson(2), notificationJson(1, isRead: true)], 'count': 2});
 }
+
+final _dashboardJson = {
+  'activeStudents': 120,
+  'newStudentsThisMonth': 8,
+  'activeInstructors': 15,
+  'inactiveInstructors': 0,
+  'activeVehicles': 25,
+  'vehiclesInService': 3,
+  'lessonsThisMonth': 34,
+  'lessonsLastMonth': 30,
+  'lessonsChangePercent': 12.0,
+  'year': 2026,
+  'completedLessonsPerMonth': <dynamic>[],
+  'statusDistribution': <dynamic>[],
+  'recentActivity': <dynamic>[],
+  'todayLessons': <dynamic>[],
+  'generatedAtUtc': '2026-10-16T12:00:00Z',
+};
 
 void main() {
   group('LoginScreen', () {
@@ -137,10 +156,11 @@ void main() {
 
     testApp('a returning user with a valid stored token goes straight to the shell', (tester) async {
       await _pumpApp(tester, _quietApi, storedToken: makeJwt(firstName: 'Armin', lastName: 'M'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.byType(LoginScreen), findsNothing);
-      expect(find.text(AppStrings.welcome('Armin M')), findsOneWidget);
+      expect(find.text(AppStrings.navDashboard), findsWidgets);
+      expect(find.text(AppStrings.dashboardTotalStudents), findsOneWidget);
     });
 
     testApp('the bell shows the unread count and opens the notifications', (tester) async {

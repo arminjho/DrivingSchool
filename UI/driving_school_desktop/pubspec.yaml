@@ -29,6 +29,7 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   file_picker: ^13.1.0
+  fl_chart: ^1.1.1
   flutter:
     sdk: flutter
   flutter_form_builder: ^11.0.0
@@ -36,6 +37,7 @@ dependencies:
   http: ^1.6.0
   intl: ^0.20.3
   material_ui: ^1.7.0
+  printing: ^5.14.2
   provider: ^6.1.5+1
   signalr_netcore: ^1.4.4
 

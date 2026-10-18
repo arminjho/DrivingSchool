@@ -165,6 +165,38 @@ public class LessonQueryService
         };
     }
 
+    /// <summary>Admin "all lessons" overview - every lesson, filterable by status, instructor,
+    /// student and date range (docs/prijava.md desktop admin lesson overview).</summary>
+    public async Task<PagedResult<LessonDto>> GetAllAsync(LessonAdminSearchObject search, CancellationToken cancellationToken)
+    {
+        var query = LessonDetailQuery();
+
+        if (!string.IsNullOrWhiteSpace(search.Status) && Enum.TryParse<LessonStatus>(search.Status, true, out var status))
+        {
+            query = query.Where(l => l.Status == status);
+        }
+        if (search.InstructorId is { } instructorId)
+        {
+            query = query.Where(l => l.InstructorId == instructorId);
+        }
+        if (search.StudentId is { } studentId)
+        {
+            query = query.Where(l => l.StudentId == studentId);
+        }
+        if (search.DateFrom is { } dateFrom)
+        {
+            var fromUtc = dateFrom.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            query = query.Where(l => l.StartsAtUtc >= fromUtc);
+        }
+        if (search.DateTo is { } dateTo)
+        {
+            var toUtc = dateTo.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddDays(1);
+            query = query.Where(l => l.StartsAtUtc < toUtc);
+        }
+
+        return await ToPagedResultAsync(query, search, cancellationToken);
+    }
+
     private void EnsureOwnerOrAdmin(Lesson lesson)
     {
         if (_currentUser.IsInRole(Role.Admin))

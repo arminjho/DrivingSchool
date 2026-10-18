@@ -5,6 +5,8 @@ public class LessonDto
     public int Id { get; set; }
     public int StudentId { get; set; }
     public string StudentFullName { get; set; } = string.Empty;
+    public string StudentEmail { get; set; } = string.Empty;
+    public string StudentPhoneNumber { get; set; } = string.Empty;
     public int InstructorId { get; set; }
     public string InstructorFullName { get; set; } = string.Empty;
     public int? VehicleId { get; set; }

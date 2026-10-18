@@ -37,8 +37,9 @@ extension AppToneX on AppTone {
 class AppStatusBadge extends StatelessWidget {
   final String label;
   final AppTone tone;
+  final IconData? icon;
 
-  const AppStatusBadge({super.key, required this.label, this.tone = AppTone.neutral});
+  const AppStatusBadge({super.key, required this.label, this.tone = AppTone.neutral, this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -54,12 +55,18 @@ class AppStatusBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 6,
-            height: 6,
-            margin: const EdgeInsets.only(right: 6),
-            decoration: BoxDecoration(color: foreground, shape: BoxShape.circle),
-          ),
+          if (icon != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 5),
+              child: Icon(icon, size: 13, color: foreground),
+            )
+          else
+            Container(
+              width: 6,
+              height: 6,
+              margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(color: foreground, shape: BoxShape.circle),
+            ),
           // One line, always: the pill sits inside fixed-height table rows.
           Flexible(
             child: Text(

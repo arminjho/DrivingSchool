@@ -19,6 +19,11 @@ public class LessonController : ControllerBase
         _commandService = commandService;
     }
 
+    [HttpGet]
+    [Authorize(Roles = Role.Admin)]
+    public async Task<ActionResult<eAutoskola.Application.Common.PagedResult<LessonDto>>> GetAll([FromQuery] LessonAdminSearchObject criteria, CancellationToken cancellationToken)
+        => Ok(await _queryService.GetAllAsync(criteria, cancellationToken));
+
     [HttpGet("available-slots")]
     [Authorize(Roles = Role.Student)]
     public async Task<ActionResult<List<DateTime>>> GetAvailableSlots([FromQuery] int instructorId, [FromQuery] DateOnly date, CancellationToken cancellationToken)

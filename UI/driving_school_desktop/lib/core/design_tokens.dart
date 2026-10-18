@@ -101,6 +101,10 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color navItemSelected;
   final Color navItemSelectedText;
 
+  // Charts
+  final List<Color> chartSeries;
+  final Color chartGrid;
+
   final Color shadowColor;
 
   const AppColors({
@@ -134,6 +138,8 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.navItemHover,
     required this.navItemSelected,
     required this.navItemSelectedText,
+    required this.chartSeries,
+    required this.chartGrid,
     required this.shadowColor,
   });
 
@@ -168,6 +174,16 @@ class AppColors extends ThemeExtension<AppColors> {
     navItemHover: Color(0xFF171F2C),
     navItemSelected: Color(0xFF1A2A47),
     navItemSelectedText: Color(0xFFFFFFFF),
+    chartSeries: [
+      Color(0xFF5B93FF),
+      Color(0xFF35C47B),
+      Color(0xFFA78BFA),
+      Color(0xFFFBBF24),
+      Color(0xFF22D3EE),
+      Color(0xFFF472B6),
+      Color(0xFF94A3B8),
+    ],
+    chartGrid: Color(0xFF1D2534),
     shadowColor: Color(0xFF000000),
   );
 
@@ -179,6 +195,8 @@ class AppColors extends ThemeExtension<AppColors> {
         BoxShadow(color: shadowColor.withValues(alpha: 0.45), blurRadius: 40, offset: const Offset(0, 16)),
         BoxShadow(color: shadowColor.withValues(alpha: 0.25), blurRadius: 8, offset: const Offset(0, 2)),
       ];
+
+  Color series(int index) => chartSeries[index % chartSeries.length];
 
   @override
   AppColors copyWith() => this;

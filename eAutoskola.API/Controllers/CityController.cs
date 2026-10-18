@@ -13,6 +13,14 @@ public class CityController : BaseCRUDController<CityDto, CitySearchObject, City
     {
     }
 
+    // Anonymous reads only: the Student self-registration form needs a city dropdown before it
+    // has a token to call anything else with (upute.md §5 still protects writes, below).
+    [AllowAnonymous]
+    public override Task<ActionResult<PagedResult<CityDto>>> GetPaged(CitySearchObject criteria, CancellationToken cancellationToken) => base.GetPaged(criteria, cancellationToken);
+
+    [AllowAnonymous]
+    public override Task<ActionResult<CityDto>> GetById(int id, CancellationToken cancellationToken) => base.GetById(id, cancellationToken);
+
     [Authorize(Roles = Role.Admin)]
     public override Task<ActionResult<CityDto>> Insert(CityRequest request, CancellationToken cancellationToken) => base.Insert(request, cancellationToken);
 

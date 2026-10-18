@@ -10,6 +10,7 @@ import 'package:driving_school_mobile/models/paged_result.dart';
 import 'package:driving_school_mobile/providers/notification_provider.dart';
 import 'package:driving_school_mobile/screens/login_screen.dart';
 import 'package:driving_school_mobile/screens/notifications/notifications_screen.dart';
+import 'package:driving_school_mobile/screens/profile/profile_screen.dart';
 import 'package:driving_school_mobile/widgets/notifications_bell.dart';
 import 'package:driving_school_mobile/widgets/ui/app_list_card.dart';
 import 'package:driving_school_mobile/widgets/ui/paged_list_view.dart';
@@ -190,15 +191,15 @@ void main() {
       expect(find.byType(LoginScreen), findsOneWidget);
     });
 
-    testApp('the bottom navigation bar switches between Home and Notifications', (tester) async {
+    testApp('the bottom navigation bar switches between Home and Profile', (tester) async {
       await _pumpApp(tester, _quietApi, storedToken: makeJwt());
       await tester.pump();
 
       expect(find.byType(NavigationBar), findsOneWidget);
-      await tester.tap(find.widgetWithText(NavigationDestination, AppStrings.notificationsTitle));
-      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(NavigationDestination, AppStrings.navProfile));
+      await tester.pump();
 
-      expect(find.byType(NotificationsScreen), findsOneWidget);
+      expect(find.byType(ProfileScreen), findsOneWidget);
     });
   });
 

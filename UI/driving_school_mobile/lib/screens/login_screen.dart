@@ -11,6 +11,8 @@ import '../widgets/ui/app_action_button.dart';
 import '../widgets/ui/app_card.dart';
 import '../widgets/ui/app_states.dart';
 import '../widgets/ui/app_text_field.dart';
+import 'auth/forgot_password_screen.dart';
+import 'auth/register_screen.dart';
 
 /// Credentials go in the POST body; a successful sign-in changes the `AuthSession`, which is what
 /// moves the app to the shell - this screen never navigates by hand.
@@ -98,6 +100,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     AppActionButton(label: AppStrings.loginAction, onPressed: _submit, isLoading: _isSubmitting),
+                    const SizedBox(height: AppSpacing.sm),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ForgotPasswordScreen())),
+                      child: const Text(AppStrings.forgotPasswordLink),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const RegisterScreen())),
+                      child: const Text(AppStrings.noAccount),
+                    ),
                   ],
                 ),
               ),

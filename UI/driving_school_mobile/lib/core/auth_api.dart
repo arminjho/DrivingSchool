@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+
 import 'api_exception.dart';
 import 'api_http.dart';
 import 'auth_session.dart';
@@ -30,7 +32,70 @@ class AuthApi {
       headers: const {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'password': password}),
     );
+    await _handleAuthResponse(response);
+  }
 
+  /// Self-registration - always a Student account server-side (the request carries no role
+  /// field at all). Signs the new account straight in on success, same as a login.
+  Future<void> register({
+    required String email,
+    required String password,
+    required String confirmPassword,
+    required String firstName,
+    required String lastName,
+    required String phoneNumber,
+    int? cityId,
+    required int vehicleCategoryId,
+  }) async {
+    final response = await apiPost(
+      ApiConfig.uri('api/auth/register'),
+      headers: const {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email,
+        'password': password,
+        'confirmPassword': confirmPassword,
+        'firstName': firstName,
+        'lastName': lastName,
+        'phoneNumber': phoneNumber,
+        'cityId': cityId,
+        'vehicleCategoryId': vehicleCategoryId,
+      }),
+    );
+    await _handleAuthResponse(response);
+  }
+
+  Future<void> forgotPassword(String email) async {
+    final response = await apiPost(
+      ApiConfig.uri('api/auth/forgot-password'),
+      headers: const {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) throw BaseProvider.parseError(response);
+  }
+
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+    required String confirmNewPassword,
+  }) async {
+    final response = await apiPost(
+      ApiConfig.uri('api/auth/reset-password'),
+      headers: const {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'code': code, 'newPassword': newPassword, 'confirmNewPassword': confirmNewPassword}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) throw BaseProvider.parseError(response);
+  }
+
+  /// Invalidates the token on the server, then ends the local session. The local session is
+  /// cleared even when the server cannot be reached - it must never trap the user signed in.
+  Future<void> logout() async {
+    final token = _session.token;
+    if (token != null) await _revoke(token);
+    _session.clear();
+  }
+
+  Future<void> _handleAuthResponse(http.Response response) async {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw BaseProvider.parseError(response);
     }
@@ -48,14 +113,6 @@ class AuthApi {
     if (!await _session.signIn(auth.token)) {
       throw const ApiException(statusCode: 0, message: AppStrings.loginFailed);
     }
-  }
-
-  /// Invalidates the token on the server, then ends the local session. The local session is
-  /// cleared even when the server cannot be reached - it must never trap the user signed in.
-  Future<void> logout() async {
-    final token = _session.token;
-    if (token != null) await _revoke(token);
-    _session.clear();
   }
 
   Future<void> _revoke(String token) async {

@@ -1,4 +1,4 @@
-/// Mirrors the backend's `InstructorStatisticsDto`.
+/// Mirrors the backend's `InstructorStatisticsDto` - 4.3.1's "lična statistika".
 class InstructorStatistics {
   final int completedThisMonth;
   final int completedTotal;

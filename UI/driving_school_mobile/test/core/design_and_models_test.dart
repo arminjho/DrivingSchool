@@ -74,6 +74,8 @@ void main() {
         'id': 5,
         'studentId': 6,
         'studentFullName': 'Adnan Zukić',
+        'studentEmail': 'adnan.zukic@email.com',
+        'studentPhoneNumber': '+387 61 123 456',
         'instructorId': 8,
         'instructorFullName': 'Damir Kovačević',
         'vehicleId': null,

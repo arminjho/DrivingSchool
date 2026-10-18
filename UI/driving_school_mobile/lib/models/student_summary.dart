@@ -1,4 +1,5 @@
-/// Mirrors the backend's `StudentSummaryDto`.
+/// Mirrors the backend's `StudentSummaryDto` - "Moji učenici": a student who has at least one
+/// lesson with the signed-in instructor.
 class StudentSummary {
   final int id;
   final String fullName;

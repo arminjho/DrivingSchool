@@ -1,10 +1,11 @@
 namespace eAutoskola.Domain.Entities;
 
 /// <summary>
-/// Display/reference lookup table only - does NOT drive Lesson.Status (that's the LessonStatus
-/// enum). Exists to satisfy upute.md §3.1's generic "statuses" reference-table CRUD
-/// requirement and to back the reference-data screen (docs/prijava.md §4.1.5). Code values
-/// match the LessonStatus enum names.
+/// The reference table of lesson statuses (docs/prijava.md §4.1.5). Every Lesson points at its
+/// row through Lesson.RequestStatusId, so a lesson can only have a status that exists here; the
+/// LessonStatus enum is what the state machine decides with. The four rows' Code values are the
+/// enum names - the name and the description can be edited, the rows cannot be re-coded or
+/// deleted (RequestStatusService).
 /// </summary>
 public class RequestStatus
 {

@@ -17,6 +17,7 @@ import '../../widgets/ui/api_dropdown_field.dart';
 import '../../widgets/ui/app_action_button.dart';
 import '../../widgets/ui/app_card.dart';
 import '../../widgets/ui/app_date_fields.dart';
+import '../../widgets/ui/app_messages.dart';
 import '../../widgets/ui/app_states.dart';
 
 /// 4.2.4's "Izmijeni termin" - only reachable while the lesson is still Pending (same rule the
@@ -64,10 +65,12 @@ class _RescheduleLessonScreenState extends State<RescheduleLessonScreen> {
     try {
       await _lessonProvider.reschedule(
         widget.lesson.id,
-        startsAtUtc: form.value['slot'] as DateTime,
+        startsAtUtc: DateTime.fromMillisecondsSinceEpoch(form.value['slot'] as int, isUtc: true),
         drivingZoneId: form.value['drivingZoneId'] as int,
       );
-      if (mounted) Navigator.of(context).pop(true);
+      if (!mounted) return;
+      showSuccessMessage(context, AppStrings.rescheduleSuccess);
+      Navigator.of(context).pop(true);
     } on Object catch (error) {
       if (!mounted) return;
       setState(() => _banner = applyApiErrors(_formKey, error));

@@ -75,17 +75,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: ListView(
         padding: AppSpacing.page,
         children: [
-          Row(
-            children: [
-              Expanded(child: Text(AppStrings.homeSubtitle, style: context.text.bodyMedium)),
-              OutlinedButton.icon(
-                onPressed: _isLoading ? null : _load,
-                icon: _isLoading
-                    ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text(AppStrings.retry),
-              ),
-            ],
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton.icon(
+              onPressed: _isLoading ? null : _load,
+              icon: _isLoading
+                  ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text(AppStrings.retry),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           if (_error != null) ...[

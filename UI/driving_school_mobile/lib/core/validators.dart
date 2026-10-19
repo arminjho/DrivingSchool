@@ -57,15 +57,6 @@ abstract final class AppValidators {
         return _range(number, min, max);
       };
 
-  static FormFieldValidator<String> wholeNumber({int? min, int? max, bool required = true}) => (value) {
-        final text = value?.trim() ?? '';
-        if (text.isEmpty) return required ? AppStrings.required : null;
-
-        final number = int.tryParse(text);
-        if (number == null) return AppStrings.invalidWholeNumber;
-        return _range(number, min, max);
-      };
-
   static String? _range(num number, num? min, num? max) {
     if (min != null && number < min) return AppStrings.numberAtLeast(min);
     if (max != null && number > max) return AppStrings.numberAtMost(max);

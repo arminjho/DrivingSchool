@@ -5,6 +5,7 @@ import '../../core/auth_session.dart';
 import '../../core/design_tokens.dart';
 import '../../core/error_text.dart';
 import '../../l10n/app_strings.dart';
+import '../../layouts/shell_scope.dart';
 import '../../models/test_summary.dart';
 import '../../providers/test_provider.dart';
 import '../../widgets/ui/app_badge.dart';
@@ -54,7 +55,7 @@ class _TestsScreenState extends State<TestsScreen> {
     final tests = _tests;
 
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.testsTitle)),
+      appBar: ShellScope.isInside(context) ? null : AppBar(title: const Text(AppStrings.testsTitle)),
       body: tests == null
           ? Padding(
               padding: AppSpacing.page,

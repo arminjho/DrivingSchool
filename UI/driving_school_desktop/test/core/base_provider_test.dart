@@ -70,7 +70,7 @@ void main() {
   test('an HTTP 401 signs the user out, which is what sends the app back to login', () async {
     installClient((request) async => jsonResponse({'message': 'Token je opozvan.', 'errors': null}, 401));
 
-    final failure = await provider.getById(1).then<ApiException?>((_) => null, onError: (Object e) => e as ApiException);
+    final failure = await provider.getPaged().then<ApiException?>((_) => null, onError: (Object e) => e as ApiException);
 
     expect(failure?.isUnauthorized, isTrue);
     expect(session.isLoggedIn, isFalse);
@@ -107,7 +107,7 @@ void main() {
   test('a non-JSON error body falls back to a message that names the status', () async {
     installClient((request) async => http.Response('<html>Bad gateway</html>', 502));
 
-    final failure = await provider.getById(1).then<ApiException?>((_) => null, onError: (Object e) => e as ApiException);
+    final failure = await provider.getPaged().then<ApiException?>((_) => null, onError: (Object e) => e as ApiException);
 
     expect(failure?.statusCode, 502);
     expect(failure?.message, contains('502'));
@@ -116,9 +116,9 @@ void main() {
   test('a request that never reaches the server is status 0, distinct from a rejection', () async {
     installClient((request) async => throw http.ClientException('connection refused'));
 
-    final failure = await provider.getById(1).then<ApiException?>((_) => null, onError: (Object e) => e as ApiException);
+    final failure = await provider.getPaged().then<ApiException?>((_) => null, onError: (Object e) => e as ApiException);
 
-    expect(failure?.isTransportFailure, isTrue);
+    expect(failure?.statusCode, 0);
   });
 
   test('a request that hangs is cut off by the timeout instead of spinning forever', () async {
@@ -129,7 +129,7 @@ void main() {
       timeout: const Duration(milliseconds: 50),
     ).then<ApiException?>((_) => null, onError: (Object e) => e as ApiException);
 
-    expect(failure?.isTransportFailure, isTrue);
+    expect(failure?.statusCode, 0);
   });
 
   test('insert and update send JSON, delete accepts an empty 204', () async {

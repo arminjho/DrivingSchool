@@ -1,3 +1,4 @@
+using eAutoskola.Application.Files;
 using eAutoskola.Domain.Files;
 using eAutoskola.Domain.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -6,24 +7,28 @@ using Microsoft.AspNetCore.Mvc;
 namespace eAutoskola.API.Controllers;
 
 /// <summary>Serves and accepts images saved via IFileStorageService (profile pictures,
-/// question images). [Authorize] rather than static-file middleware, so a stored path is only
-/// reachable by a signed-in client - no anonymous file access (upute.md §5, file download
-/// requires authorization). Path-traversal is rejected inside the storage service itself.</summary>
+/// vehicle and question images). [Authorize] rather than static-file middleware, so a stored path
+/// is only reachable by a signed-in client, and FileAccessService additionally checks that the
+/// caller may see that particular file (upute.md §5: authorization + ownership on download).
+/// Path-traversal is rejected inside the storage service itself.</summary>
 [ApiController]
 [Route("api/files")]
 [Authorize]
 public class FilesController : ControllerBase
 {
     private readonly IFileStorageService _storage;
+    private readonly FileAccessService _access;
 
-    public FilesController(IFileStorageService storage)
+    public FilesController(IFileStorageService storage, FileAccessService access)
     {
         _storage = storage;
+        _access = access;
     }
 
     [HttpGet]
     public async Task<IActionResult> Get([FromQuery] string path, CancellationToken cancellationToken)
     {
+        await _access.EnsureCanReadAsync(path, cancellationToken);
         var file = await _storage.GetAsync(path, cancellationToken);
         return file is null ? NotFound() : File(file.Value.Content, file.Value.ContentType);
     }

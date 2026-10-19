@@ -27,6 +27,7 @@ import '../../widgets/ui/app_dialog.dart';
 import '../../widgets/ui/app_messages.dart';
 import '../../widgets/ui/app_states.dart';
 import '../../widgets/ui/app_text_field.dart';
+import '../../widgets/ui/form_prerequisites.dart';
 import '../../widgets/ui/paged_table.dart';
 
 class VehicleServicesTab extends StatefulWidget {
@@ -64,6 +65,12 @@ class _VehicleServicesTabState extends State<VehicleServicesTab> {
   }
 
   Future<void> _openForm({VehicleService? initial}) async {
+    if (initial == null) {
+      if (!await requireRecords(context, count: _vehicleProvider.totalCount, missingMessage: AppStrings.noVehiclesPrefix)) return;
+      if (!mounted || !await requireRecords(context, count: _serviceTypeProvider.totalCount, missingMessage: AppStrings.noVehicleServiceTypesPrefix)) return;
+    }
+    if (!mounted) return;
+
     final formKey = GlobalKey<FormBuilderState>();
     var isSubmitting = false;
     String? banner;
@@ -149,6 +156,7 @@ class _VehicleServicesTabState extends State<VehicleServicesTab> {
                   idOf: (t) => t.id,
                   labelOf: (t) => t.name,
                   validator: AppValidators.requiredSelection<int>(),
+                  emptyMessage: AppStrings.noVehicleServiceTypesPrefix,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(

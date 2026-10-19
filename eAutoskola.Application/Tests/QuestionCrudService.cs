@@ -1,6 +1,7 @@
 using eAutoskola.Application.Common;
 using eAutoskola.Domain.Entities;
 using eAutoskola.Domain.Exceptions;
+using eAutoskola.Domain.Resources;
 using eAutoskola.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,6 +24,10 @@ public class QuestionCrudService : BaseCRUDService<QuestionDto, QuestionSearchOb
         if (search.QuestionAreaId.HasValue)
         {
             query = query.Where(q => q.QuestionAreaId == search.QuestionAreaId.Value);
+        }
+        if (!string.IsNullOrWhiteSpace(search.Text))
+        {
+            query = query.Where(q => q.Text.Contains(search.Text));
         }
         return query;
     }
@@ -51,7 +56,7 @@ public class QuestionCrudService : BaseCRUDService<QuestionDto, QuestionSearchOb
     {
         if (await Context.AttemptAnswers.AnyAsync(a => a.QuestionId == entity.Id, cancellationToken))
         {
-            throw new BusinessException("Pitanje se ne može obrisati jer postoje evidentirani odgovori učenika.");
+            throw new BusinessException(Messages.QuestionHasAnswers);
         }
     }
 
@@ -61,11 +66,11 @@ public class QuestionCrudService : BaseCRUDService<QuestionDto, QuestionSearchOb
 
         if (options.Count != 4)
         {
-            FieldValidationRules.Add(errors, nameof(QuestionRequest.AnswerOptions), "Pitanje mora imati tačno 4 ponuđena odgovora.");
+            FieldValidationRules.Add(errors, nameof(QuestionRequest.AnswerOptions), Messages.QuestionNeedsFourOptions);
         }
         else if (options.Count(o => o.IsCorrect) != 1)
         {
-            FieldValidationRules.Add(errors, nameof(QuestionRequest.AnswerOptions), "Tačno jedan ponuđeni odgovor mora biti označen kao tačan.");
+            FieldValidationRules.Add(errors, nameof(QuestionRequest.AnswerOptions), Messages.QuestionNeedsOneCorrectOption);
         }
 
         FieldValidationRules.ThrowIfAny(errors);

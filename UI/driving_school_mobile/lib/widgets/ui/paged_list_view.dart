@@ -11,8 +11,8 @@ import 'app_states.dart';
 /// [AppListCard] - the chrome around it (search, loading skeleton, empty/error state, scroll to
 /// load more) lives here once.
 ///
-/// Built on [PagedController] in `accumulate: true` mode: each scroll-triggered page is appended
-/// rather than replacing the list, which is the natural mobile pattern (no page-number footer).
+/// Built on [PagedController]: each scroll-triggered page is appended rather than replacing the
+/// list, which is the natural mobile pattern (no page-number footer).
 class PagedListView<T> extends StatefulWidget {
   final PagedController<T> controller;
   final Widget Function(BuildContext context, T item) itemBuilder;
@@ -58,7 +58,6 @@ class _PagedListViewState<T> extends State<PagedListView<T>> {
   }
 
   void _onScroll() {
-    if (!widget.controller.accumulate) return;
     if (_scrollController.position.pixels < _scrollController.position.maxScrollExtent - 200) return;
     widget.controller.loadMore();
   }

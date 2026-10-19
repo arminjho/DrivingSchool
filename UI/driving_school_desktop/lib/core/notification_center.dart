@@ -67,7 +67,6 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
   String? get listError => _listError;
 
   bool get isWatchingList => _listWatchers > 0;
-  bool get isRealtime => _hub.isConnected;
 
   void beginWatchingList() {
     _listWatchers++;

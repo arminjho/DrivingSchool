@@ -25,7 +25,7 @@ public class LessonController : ControllerBase
         => Ok(await _queryService.GetAllAsync(criteria, cancellationToken));
 
     [HttpGet("available-slots")]
-    [Authorize(Roles = Role.Student)]
+    [Authorize(Roles = $"{Role.Student},{Role.Instructor}")]
     public async Task<ActionResult<List<DateTime>>> GetAvailableSlots([FromQuery] int instructorId, [FromQuery] DateOnly date, CancellationToken cancellationToken)
         => Ok(await _queryService.GetAvailableSlotsAsync(instructorId, date, cancellationToken));
 

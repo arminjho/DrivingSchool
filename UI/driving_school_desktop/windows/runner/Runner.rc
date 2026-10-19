@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "ba.edu.fit.eautoskola" "\0"
-            VALUE "FileDescription", "driving_school_desktop" "\0"
+            VALUE "FileDescription", "eAutoskola Admin" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "driving_school_desktop" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 ba.edu.fit.eautoskola. All rights reserved." "\0"
             VALUE "OriginalFilename", "driving_school_desktop.exe" "\0"
-            VALUE "ProductName", "driving_school_desktop" "\0"
+            VALUE "ProductName", "eAutoskola Admin" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

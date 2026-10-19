@@ -14,7 +14,7 @@ void main() {
     return PagedResult(resultList: List.generate(count, (i) => first + i), count: total);
   }
 
-  PagedController<int> controller({bool accumulate = false, Future<PagedResult<int>> Function(PagedQuery)? fetch}) =>
+  PagedController<int> controller({Future<PagedResult<int>> Function(PagedQuery)? fetch}) =>
       PagedController<int>(
         fetch: fetch ??
             (query) async {
@@ -22,7 +22,6 @@ void main() {
               return pageOf(query);
             },
         pageSize: 10,
-        accumulate: accumulate,
         searchParam: 'name',
         debounce: const Duration(milliseconds: 20),
       );
@@ -40,7 +39,6 @@ void main() {
     expect(paged.totalPages, 3);
     expect(paged.page, 1);
     expect(paged.isLoading, isFalse);
-    expect(paged.hasMore, isTrue);
   });
 
   test('going to another page replaces the rows; the request carries that page', () async {
@@ -52,20 +50,6 @@ void main() {
 
     expect(paged.items, [20, 21, 22, 23, 24]);
     expect(queries.last.page, 3);
-  });
-
-  test('accumulate mode appends each page and stops when everything is loaded', () async {
-    final paged = controller(accumulate: true);
-    addTearDown(paged.dispose);
-    await paged.load();
-
-    await paged.loadMore();
-    await paged.loadMore();
-    await paged.loadMore();
-
-    expect(paged.items.length, 25);
-    expect(paged.hasMore, isFalse);
-    expect(queries.map((q) => q.page), [1, 2, 3]);
   });
 
   test('search is debounced into one request, sent to the API, and returns to page 1', () async {

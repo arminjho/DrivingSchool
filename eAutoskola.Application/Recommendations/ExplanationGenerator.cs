@@ -1,3 +1,5 @@
+using eAutoskola.Domain.Resources;
+
 namespace eAutoskola.Application.Recommendations;
 
 /// <summary>
@@ -12,12 +14,11 @@ public static class ExplanationGenerator
     /// posljednjem probnom testu").</param>
     public static string Generate(string studyLessonTitle, string areaName, int lastAttemptAreaErrorPercent, bool isCritical)
     {
-        var text = $"Preporučujemo vam da ponovite lekciju '{studyLessonTitle}' jer ste na posljednjem probnom testu " +
-                   $"imali {lastAttemptAreaErrorPercent}% netačnih odgovora iz ove specifične kategorije ({areaName}).";
+        var text = string.Format(Messages.RecommendationExplanation, studyLessonTitle, lastAttemptAreaErrorPercent, areaName);
 
         if (isCritical)
         {
-            text += " Ova oblast je označena kao kritična jer ste greške iz nje ponovili u više probnih testova.";
+            text += Messages.RecommendationCriticalSuffix;
         }
 
         return text;
@@ -25,6 +26,5 @@ public static class ExplanationGenerator
 
     /// <summary>Header text shown above the recommendations list on the student's screen
     /// (docs/prijava.md §4.2.8).</summary>
-    public static string ColdStartMessage() =>
-        "Preporuke će biti dostupne nakon što riješite barem jedan probni test.";
+    public static string ColdStartMessage() => Messages.RecommendationColdStart;
 }

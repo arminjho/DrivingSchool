@@ -46,7 +46,6 @@ abstract class BaseProvider<T> {
   /// Dart's default is no timeout, so on a dying connection a request never completes and never
   /// fails - the user would watch a spinner forever.
   static const Duration requestTimeout = Duration(seconds: 20);
-  static const Duration fileTransferTimeout = Duration(seconds: 120);
 
   @visibleForTesting
   static set client(http.Client value) => _client = value;
@@ -141,26 +140,5 @@ abstract class BaseProvider<T> {
   Future<T> getById(int id) async {
     final response = await send(() => _client.get(buildUri('api/$_endpoint/$id'), headers: authHeaders()));
     return fromJson(decode(response) as Map<String, dynamic>);
-  }
-
-  Future<T> insert(Map<String, dynamic> request) async {
-    final response = await send(
-      () => _client.post(buildUri('api/$_endpoint'), headers: authHeaders(), body: jsonEncode(request)),
-      timeout: fileTransferTimeout,
-    );
-    return fromJson(decode(response) as Map<String, dynamic>);
-  }
-
-  Future<T> update(int id, Map<String, dynamic> request) async {
-    final response = await send(
-      () => _client.put(buildUri('api/$_endpoint/$id'), headers: authHeaders(), body: jsonEncode(request)),
-      timeout: fileTransferTimeout,
-    );
-    return fromJson(decode(response) as Map<String, dynamic>);
-  }
-
-  Future<void> delete(int id) async {
-    final response = await send(() => _client.delete(buildUri('api/$_endpoint/$id'), headers: authHeaders()));
-    decode(response, allowEmptyBody: true);
   }
 }

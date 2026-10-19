@@ -16,15 +16,14 @@ namespace eAutoskola.Application.Lessons;
 
 /// <summary>
 /// The command half of the Lesson CQRS split - every state transition goes through
-/// LessonStateMachine.EnsureCanTransition first, then: (1) one atomic SaveChangesAsync for the
-/// Lesson + LessonStatusHistory, (2) a best-effort Notification, (3) a best-effort RabbitMQ
-/// publish. Steps 2-3 deliberately are NOT part of the same transaction as step 1 (same
-/// treatment as every other side effect in this codebase).
+/// LessonStateMachine.EnsureCanTransition first, then: (1) ONE atomic SaveChangesAsync for the
+/// Lesson, its LessonStatusHistory and the staged Notification(s) (and, where relevant, the
+/// extra-lesson charge or the refund), (2) the SignalR push of those notifications and (3) the
+/// RabbitMQ publish for the e-mail. Steps 2-3 run only after the commit and never fail the
+/// request (both swallow and log their own errors).
 /// </summary>
 public class LessonCommandService
 {
-    private static readonly TimeSpan SlotDuration = TimeSpan.FromHours(1);
-
     private readonly EAutoskolaDbContext _context;
     private readonly ICurrentUserService _currentUser;
     private readonly NotificationService _notificationService;
@@ -51,7 +50,7 @@ public class LessonCommandService
     public async Task<LessonDto> BookAsync(LessonBookRequest request, CancellationToken cancellationToken)
     {
         var studentId = _currentUser.UserId;
-        var endsAtUtc = request.StartsAtUtc + SlotDuration;
+        var endsAtUtc = request.StartsAtUtc + LessonSlotPolicy.SlotDuration;
 
         var student = await _context.Users.Include(u => u.StudentProfile)
             .FirstOrDefaultAsync(u => u.Id == studentId, cancellationToken)
@@ -59,11 +58,11 @@ public class LessonCommandService
 
         if (!student.IsActive)
         {
-            throw new BusinessException("Vaš nalog je deaktiviran, nije moguće zakazati čas.");
+            throw new BusinessException(Messages.StudentAccountDeactivated);
         }
         if (student.StudentProfile is null)
         {
-            throw new BusinessException("Profil učenika nije pronađen.");
+            throw new BusinessException(Messages.StudentProfileNotFound);
         }
 
         await ValidateInstructorAsync(request.InstructorId, cancellationToken);
@@ -84,6 +83,7 @@ public class LessonCommandService
             LessonNumber = lessonNumber,
             Note = request.Note,
             Status = LessonStatus.Pending,
+            RequestStatusId = await RequestStatusIdAsync(LessonStatus.Pending, cancellationToken),
         };
 
         _context.Lessons.Add(lesson);
@@ -93,14 +93,19 @@ public class LessonCommandService
             FromStatus = LessonStatus.Pending,
             ToStatus = LessonStatus.Pending,
             ChangedByUserId = studentId,
-            Reason = "Kreiran zahtjev za čas.",
+            Reason = Messages.HistoryLessonRequested,
         });
-        await _context.SaveChangesAsync(cancellationToken);
-
-        await _notificationService.NotifyAsync(
-            request.InstructorId, "Novi zahtjev za čas",
-            $"{student.FirstName} {student.LastName} je zatražio/la čas vožnje.",
+        _notificationService.Stage(
+            request.InstructorId, Messages.NotificationLessonRequestedTitle,
+            string.Format(Messages.NotificationLessonRequestedBody, $"{student.FirstName} {student.LastName}"),
+            NotificationType.LessonCreated);
+        await _notificationService.StageForAdminsAsync(
+            Messages.NotificationLessonRequestedTitle,
+            string.Format(Messages.NotificationLessonRequestedBody, $"{student.FirstName} {student.LastName}"),
             NotificationType.LessonCreated, cancellationToken);
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await _notificationService.PushStagedAsync(cancellationToken);
 
         return await ReloadAsync(lesson.Id, cancellationToken);
     }
@@ -115,10 +120,10 @@ public class LessonCommandService
         }
         if (lesson.Status != LessonStatus.Pending)
         {
-            throw new BusinessException("Termin se može izmijeniti samo dok je zahtjev na čekanju.");
+            throw new BusinessException(Messages.LessonRescheduleOnlyPending);
         }
 
-        var endsAtUtc = request.StartsAtUtc + SlotDuration;
+        var endsAtUtc = request.StartsAtUtc + LessonSlotPolicy.SlotDuration;
         ValidateFutureDate(request.StartsAtUtc);
         await EnsureNoOverlapAsync(lesson.InstructorId, lesson.StudentId, request.StartsAtUtc, endsAtUtc, lesson.Id, cancellationToken);
 
@@ -131,7 +136,7 @@ public class LessonCommandService
         _context.LessonStatusHistories.Add(new LessonStatusHistory
         {
             LessonId = lesson.Id, FromStatus = lesson.Status, ToStatus = lesson.Status,
-            ChangedByUserId = _currentUser.UserId, Reason = "Termin izmijenjen.",
+            ChangedByUserId = _currentUser.UserId, Reason = Messages.HistoryLessonRescheduled,
         });
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -146,21 +151,23 @@ public class LessonCommandService
 
         if (lesson.VehicleId is null)
         {
-            throw new BusinessException("Nije moguće potvrditi čas jer nije dodijeljeno vozilo.");
+            throw new BusinessException(Messages.LessonConfirmNeedsVehicle);
         }
 
         // Staged on the context here, committed by TransitionAsync's single SaveChangesAsync -
-        // the extra-lesson charge and the confirmation succeed or fail together.
+        // the extra-lesson charge, the notification and the confirmation succeed or fail together.
         var extraLessonPrice = await _lessonPayments.AddExtraLessonChargeIfNeededAsync(lesson, cancellationToken);
 
-        await TransitionAsync(lesson, LessonStatus.Confirmed, "Zahtjev potvrđen.", cancellationToken);
-
-        var student = await _context.Users.FirstAsync(u => u.Id == lesson.StudentId, cancellationToken);
-        await _notificationService.NotifyAsync(lesson.StudentId, "Čas potvrđen",
+        var student = await _context.Users.AsNoTracking().FirstAsync(u => u.Id == lesson.StudentId, cancellationToken);
+        _notificationService.Stage(lesson.StudentId, Messages.NotificationLessonConfirmedTitle,
             extraLessonPrice is { } price
-                ? $"Vaš zahtjev za čas vožnje je potvrđen. Ovaj čas nije obuhvaćen paketom i potrebno ga je platiti ({price:F2} KM)."
-                : "Vaš zahtjev za čas vožnje je potvrđen.",
-            NotificationType.LessonConfirmed, cancellationToken);
+                ? string.Format(Messages.NotificationLessonConfirmedExtraBody, price)
+                : Messages.NotificationLessonConfirmedBody,
+            NotificationType.LessonConfirmed);
+
+        await TransitionAsync(lesson, LessonStatus.Confirmed, Messages.HistoryLessonConfirmed, cancellationToken);
+        await _notificationService.PushStagedAsync(cancellationToken);
+
         await _messagePublisher.PublishAsync(new LessonConfirmedMessage
         {
             LessonId = lesson.Id, ToEmail = student.Email, ToName = $"{student.FirstName} {student.LastName}", StartsAtUtc = lesson.StartsAtUtc,
@@ -180,11 +187,13 @@ public class LessonCommandService
             throw new ValidationException(nameof(request.Reason), Messages.RequiredField);
         }
 
-        await TransitionAsync(lesson, LessonStatus.Cancelled, request.Reason, cancellationToken, request.Reason);
+        var student = await _context.Users.AsNoTracking().FirstAsync(u => u.Id == lesson.StudentId, cancellationToken);
+        _notificationService.Stage(lesson.StudentId, Messages.NotificationLessonRejectedTitle,
+            string.Format(Messages.NotificationLessonRejectedBody, request.Reason), NotificationType.LessonRejected);
 
-        var student = await _context.Users.FirstAsync(u => u.Id == lesson.StudentId, cancellationToken);
-        await _notificationService.NotifyAsync(lesson.StudentId, "Zahtjev odbijen",
-            $"Vaš zahtjev je odbijen: {request.Reason}", NotificationType.LessonRejected, cancellationToken);
+        await TransitionAsync(lesson, LessonStatus.Cancelled, request.Reason, cancellationToken, request.Reason);
+        await _notificationService.PushStagedAsync(cancellationToken);
+
         await _messagePublisher.PublishAsync(new LessonRejectedMessage
         {
             LessonId = lesson.Id, ToEmail = student.Email, ToName = $"{student.FirstName} {student.LastName}", Reason = request.Reason,
@@ -222,16 +231,43 @@ public class LessonCommandService
         if (lesson.Status == LessonStatus.Confirmed && actorIsStudent
             && lesson.StartsAtUtc - DateTime.UtcNow < TimeSpan.FromHours(LessonStateMachine.CancellationCutoffHours))
         {
-            throw new BusinessException($"Čas se može otkazati najkasnije {LessonStateMachine.CancellationCutoffHours}h prije termina.");
+            throw new BusinessException(string.Format(Messages.LessonCancelCutoff, LessonStateMachine.CancellationCutoffHours));
         }
 
         // The PayPal refund happens here, before any lesson/charge state is touched: if it
         // fails nothing changes and the exception aborts the cancellation.
         var refund = await _lessonPayments.ApplyCancellationAsync(paymentPlan, lesson, cancellationToken);
 
+        var notifyUserId = isStudent ? lesson.InstructorId : lesson.StudentId;
+        var notifyUser = await _context.Users.AsNoTracking().FirstAsync(u => u.Id == notifyUserId, cancellationToken);
+        _notificationService.Stage(notifyUserId, Messages.NotificationLessonCancelledTitle,
+            reason is null
+                ? Messages.NotificationLessonCancelledBody
+                : string.Format(Messages.NotificationLessonCancelledWithReasonBody, reason),
+            NotificationType.LessonCancelled);
+
+        var lessonStudent = await _context.Users.AsNoTracking().FirstAsync(u => u.Id == lesson.StudentId, cancellationToken);
+        var studentName = $"{lessonStudent.FirstName} {lessonStudent.LastName}";
+        await _notificationService.StageForAdminsAsync(
+            Messages.NotificationLessonCancelledTitle,
+            string.Format(Messages.NotificationAdminLessonCancelledBody, studentName),
+            NotificationType.LessonCancelled, cancellationToken);
+
+        User? refundedStudent = null;
+        if (refund is not null)
+        {
+            refundedStudent = lessonStudent;
+            _notificationService.Stage(lesson.StudentId, Messages.NotificationRefundTitle,
+                string.Format(Messages.NotificationRefundBody, refund.AmountKm), NotificationType.RefundIssued);
+            await _notificationService.StageForAdminsAsync(
+                Messages.NotificationRefundTitle,
+                string.Format(Messages.NotificationAdminRefundBody, studentName, refund.AmountKm),
+                NotificationType.RefundIssued, cancellationToken);
+        }
+
         try
         {
-            await TransitionAsync(lesson, LessonStatus.Cancelled, reason ?? "Zahtjev otkazan.", cancellationToken, reason);
+            await TransitionAsync(lesson, LessonStatus.Cancelled, reason ?? Messages.HistoryLessonCancelled, cancellationToken, reason);
         }
         catch (Exception ex) when (refund is not null)
         {
@@ -239,19 +275,20 @@ public class LessonCommandService
             _logger.LogCritical(ex,
                 "RECONCILE: PayPal refund succeeded but saving the cancellation failed. Lesson {LessonId}, payment {PaymentId}, capture {CaptureId}, amount {AmountKm} KM",
                 lesson.Id, paymentPlan?.CompletedPayment?.Id, paymentPlan?.CompletedPayment?.PayPalCaptureId, refund.AmountKm);
+            _notificationService.DiscardStaged();
             throw;
         }
 
-        if (refund is not null)
+        await _notificationService.PushStagedAsync(cancellationToken);
+
+        if (refund is not null && refundedStudent is not null)
         {
-            await NotifyRefundAsync(lesson, refund, cancellationToken);
+            await _messagePublisher.PublishAsync(new RefundIssuedMessage
+            {
+                ToEmail = refundedStudent.Email, ToName = $"{refundedStudent.FirstName} {refundedStudent.LastName}", Amount = refund.AmountKm,
+            }, cancellationToken);
         }
 
-        var notifyUserId = isStudent ? lesson.InstructorId : lesson.StudentId;
-        var notifyUser = await _context.Users.FirstAsync(u => u.Id == notifyUserId, cancellationToken);
-        await _notificationService.NotifyAsync(notifyUserId, "Čas otkazan",
-            reason is null ? "Čas vožnje je otkazan." : $"Čas vožnje je otkazan: {reason}",
-            NotificationType.LessonCancelled, cancellationToken);
         await _messagePublisher.PublishAsync(new LessonCancelledMessage
         {
             LessonId = lesson.Id, ToEmail = notifyUser.Email, ToName = $"{notifyUser.FirstName} {notifyUser.LastName}", Reason = reason ?? string.Empty,
@@ -267,7 +304,7 @@ public class LessonCommandService
 
         if (lesson.Status != LessonStatus.Confirmed)
         {
-            throw new BusinessException("Čas se može započeti samo ako je potvrđen.");
+            throw new BusinessException(Messages.LessonStartOnlyConfirmed);
         }
 
         lesson.StartedAt = DateTime.UtcNow;
@@ -284,22 +321,24 @@ public class LessonCommandService
 
         if (lesson.StartedAt is null)
         {
-            throw new BusinessException("Čas mora biti započet prije nego što se može završiti.");
+            throw new BusinessException(Messages.LessonCompleteNeedsStart);
         }
         if (request.Rating is < 1 or > 5)
         {
-            throw new ValidationException(nameof(request.Rating), "Ocjena mora biti između 1 i 5.");
+            throw new ValidationException(nameof(request.Rating), Messages.RatingOutOfRange);
         }
 
         lesson.Rating = request.Rating;
         lesson.InstructorNotes = request.InstructorNotes;
         lesson.CompletedAt = DateTime.UtcNow;
 
-        await TransitionAsync(lesson, LessonStatus.Completed, "Čas uspješno odrađen.", cancellationToken);
+        var student = await _context.Users.AsNoTracking().FirstAsync(u => u.Id == lesson.StudentId, cancellationToken);
+        _notificationService.Stage(lesson.StudentId, Messages.NotificationLessonCompletedTitle,
+            Messages.NotificationLessonCompletedBody, NotificationType.LessonCompleted);
 
-        var student = await _context.Users.FirstAsync(u => u.Id == lesson.StudentId, cancellationToken);
-        await _notificationService.NotifyAsync(lesson.StudentId, "Čas završen",
-            "Vaš čas vožnje je uspješno odrađen.", NotificationType.LessonCompleted, cancellationToken);
+        await TransitionAsync(lesson, LessonStatus.Completed, Messages.HistoryLessonCompleted, cancellationToken);
+        await _notificationService.PushStagedAsync(cancellationToken);
+
         await _messagePublisher.PublishAsync(new LessonCompletedMessage
         {
             LessonId = lesson.Id, ToEmail = student.Email, ToName = $"{student.FirstName} {student.LastName}", Rating = request.Rating,
@@ -326,26 +365,6 @@ public class LessonCommandService
         return dto;
     }
 
-    // The refund is already done and committed, so a notification/e-mail problem must not turn
-    // a successful cancellation into an error response.
-    private async Task NotifyRefundAsync(Lesson lesson, RefundOutcome refund, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var student = await _context.Users.AsNoTracking().FirstAsync(u => u.Id == lesson.StudentId, cancellationToken);
-            await _notificationService.NotifyAsync(lesson.StudentId, "Povrat novca",
-                $"Izvršen je povrat novca u iznosu od {refund.AmountKm:F2} KM.", NotificationType.RefundIssued, cancellationToken);
-            await _messagePublisher.PublishAsync(new RefundIssuedMessage
-            {
-                ToEmail = student.Email, ToName = $"{student.FirstName} {student.LastName}", Amount = refund.AmountKm,
-            }, cancellationToken);
-        }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogError(ex, "Refund for lesson {LessonId} was issued but its notification/e-mail could not be sent", lesson.Id);
-        }
-    }
-
     private void EnsureInstructorOwnerOrAdmin(Lesson lesson)
     {
         if (_currentUser.IsInRole(Role.Admin))
@@ -358,10 +377,13 @@ public class LessonCommandService
         }
     }
 
+    /// <summary>Applies the status change plus its audit row and commits everything staged on the
+    /// context so far (notifications, charges, refunds) in one SaveChangesAsync.</summary>
     private async Task TransitionAsync(Lesson lesson, LessonStatus to, string historyReason, CancellationToken cancellationToken, string? rejectionReason = null)
     {
         var from = lesson.Status;
         lesson.Status = to;
+        lesson.RequestStatusId = await RequestStatusIdAsync(to, cancellationToken);
         if (rejectionReason is not null)
         {
             lesson.RejectionReason = rejectionReason;
@@ -376,12 +398,21 @@ public class LessonCommandService
         await _context.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>The RequestStatus row whose Code is the enum name - the database-level mirror of
+    /// <see cref="Lesson.Status"/> (see <see cref="Lesson.RequestStatusId"/>).</summary>
+    private async Task<int> RequestStatusIdAsync(LessonStatus status, CancellationToken cancellationToken)
+    {
+        var code = status.ToString();
+        var id = await _context.RequestStatuses.Where(s => s.Code == code).Select(s => s.Id).FirstOrDefaultAsync(cancellationToken);
+        return id != 0 ? id : throw new BusinessException(Messages.RequestStatusMissing);
+    }
+
     private async Task ValidateInstructorAsync(int instructorId, CancellationToken cancellationToken)
     {
         var instructor = await _context.Users.FirstOrDefaultAsync(u => u.Id == instructorId && u.Role == Role.Instructor, cancellationToken);
         if (instructor is null || !instructor.IsActive)
         {
-            throw new ValidationException(nameof(LessonBookRequest.InstructorId), "Odabrani instruktor nije dostupan.");
+            throw new ValidationException(nameof(LessonBookRequest.InstructorId), Messages.InstructorUnavailable);
         }
     }
 
@@ -389,7 +420,7 @@ public class LessonCommandService
     {
         if (startsAtUtc <= DateTime.UtcNow)
         {
-            throw new ValidationException(nameof(LessonBookRequest.StartsAtUtc), "Termin mora biti u budućnosti.");
+            throw new ValidationException(nameof(LessonBookRequest.StartsAtUtc), Messages.SlotMustBeInFuture);
         }
     }
 
@@ -404,7 +435,7 @@ public class LessonCommandService
 
         if (overlapping)
         {
-            throw new ConflictException("Odabrani termin se preklapa sa postojećim zahtjevom ili časom.");
+            throw new ConflictException(Messages.SlotOverlaps);
         }
     }
 

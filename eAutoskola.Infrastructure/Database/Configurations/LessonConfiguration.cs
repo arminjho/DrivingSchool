@@ -33,6 +33,11 @@ public class LessonConfiguration : IEntityTypeConfiguration<Lesson>
             .HasForeignKey(l => l.DrivingZoneId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(l => l.RequestStatus)
+            .WithMany()
+            .HasForeignKey(l => l.RequestStatusId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Defense-in-depth against the exact-same-slot race; general interval overlap is
         // checked in the service layer (a unique index can't express interval overlap).
         builder.HasIndex(l => new { l.InstructorId, l.StartsAtUtc })

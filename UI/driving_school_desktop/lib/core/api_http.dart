@@ -12,6 +12,3 @@ Future<http.Response> apiPost(Uri url, {Map<String, String>? headers, Object? bo
 
 Future<http.Response> apiPut(Uri url, {Map<String, String>? headers, Object? body, Duration? timeout}) =>
     BaseProvider.send(() => BaseProvider.client.put(url, headers: headers, body: body), timeout: timeout);
-
-Future<http.Response> apiDelete(Uri url, {Map<String, String>? headers, Object? body, Duration? timeout}) =>
-    BaseProvider.send(() => BaseProvider.client.delete(url, headers: headers, body: body), timeout: timeout);

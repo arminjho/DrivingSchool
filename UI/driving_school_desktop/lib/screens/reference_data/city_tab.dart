@@ -19,6 +19,7 @@ import '../../widgets/ui/app_dialog.dart';
 import '../../widgets/ui/app_messages.dart';
 import '../../widgets/ui/app_states.dart';
 import '../../widgets/ui/app_text_field.dart';
+import '../../widgets/ui/form_prerequisites.dart';
 import '../../widgets/ui/paged_table.dart';
 
 class CityTab extends StatefulWidget {
@@ -50,6 +51,9 @@ class _CityTabState extends State<CityTab> {
   }
 
   Future<void> _openForm({City? initial}) async {
+    if (initial == null && !await requireRecords(context, count: _countryProvider.totalCount, missingMessage: AppStrings.noCountriesPrefix)) return;
+    if (!mounted) return;
+
     final formKey = GlobalKey<FormBuilderState>();
     var isSubmitting = false;
     String? banner;
@@ -126,7 +130,7 @@ class _CityTabState extends State<CityTab> {
                   idOf: (c) => c.id,
                   labelOf: (c) => c.name,
                   validator: AppValidators.requiredSelection<int>(),
-                  emptyMessage: AppStrings.tabCountries,
+                  emptyMessage: AppStrings.noCountriesPrefix,
                 ),
               ],
             ),

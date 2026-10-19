@@ -1,7 +1,6 @@
 using eAutoskola.Application.Common;
 using eAutoskola.Domain.Entities;
 using eAutoskola.Infrastructure.Database;
-using Microsoft.EntityFrameworkCore;
 
 namespace eAutoskola.Application.StudyLessons;
 

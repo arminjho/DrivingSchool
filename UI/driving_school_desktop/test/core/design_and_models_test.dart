@@ -4,7 +4,6 @@ import 'package:driving_school_desktop/core/design_tokens.dart';
 import 'package:driving_school_desktop/core/json_helpers.dart';
 import 'package:driving_school_desktop/models/lesson.dart';
 import 'package:driving_school_desktop/models/notification_item.dart';
-import 'package:driving_school_desktop/models/study_lesson_detail.dart';
 import 'package:driving_school_desktop/models/vehicle_service_report_data.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -137,26 +136,6 @@ void main() {
       expect(report.totalCost, isA<double>());
       expect(report.dateFrom, DateTime.utc(2026, 1, 1));
       expect(report.dateTo, isNull);
-    });
-
-    test('StudyLessonDetail carries its parent\'s fields and its sections', () {
-      final detail = StudyLessonDetail.fromJson({
-        'id': 1,
-        'title': 'Saobraćajni znakovi',
-        'questionAreaId': 1,
-        'questionAreaName': 'Saobraćajni znakovi',
-        'tags': 'znakovi',
-        'validForYear': 2026,
-        'readingMinutes': 8,
-        'chapterLabel': 'Poglavlje 3.1',
-        'sectionCount': 1,
-        'sections': [
-          {'id': 3, 'studyLessonId': 1, 'title': 'Uvod', 'content': 'Tekst', 'sortOrder': 1},
-        ],
-      });
-
-      expect(detail.title, 'Saobraćajni znakovi');
-      expect(detail.sections.single.title, 'Uvod');
     });
 
     test('NotificationItem keeps the server\'s UTC timestamp and can be marked read optimistically', () {

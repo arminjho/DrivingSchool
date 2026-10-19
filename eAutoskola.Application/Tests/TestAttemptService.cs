@@ -1,9 +1,9 @@
+using eAutoskola.Application.Common;
 using eAutoskola.Domain.Entities;
 using eAutoskola.Domain.Exceptions;
 using eAutoskola.Domain.Resources;
 using eAutoskola.Domain.Security;
 using eAutoskola.Infrastructure.Database;
-using Mapster;
 using Microsoft.EntityFrameworkCore;
 
 namespace eAutoskola.Application.Tests;
@@ -23,31 +23,37 @@ public class TestAttemptService
         _currentUser = currentUser;
     }
 
-    public async Task<List<TestSummaryDto>> GetMyTestsAsync(CancellationToken cancellationToken)
+    public async Task<PagedResult<TestSummaryDto>> GetMyTestsAsync(BaseSearchObject search, CancellationToken cancellationToken)
     {
         var studentId = _currentUser.UserId;
 
-        var tests = await _context.Tests
-            .Include(t => t.QuestionArea)
-            .Include(t => t.Questions)
+        var count = await _context.Tests.CountAsync(cancellationToken);
+
+        // Projection: only the columns the list shows, the question count computed by the database.
+        var tests = await _context.Tests.AsNoTracking()
+            .OrderBy(t => t.Id)
+            .Skip((search.Page - 1) * search.PageSize)
+            .Take(search.PageSize)
+            .Select(t => new TestSummaryDto
+            {
+                Id = t.Id,
+                Title = t.Title,
+                QuestionAreaName = t.QuestionArea!.Name,
+                QuestionCount = t.Questions.Count,
+            })
             .ToListAsync(cancellationToken);
 
-        var lastAttempts = await _context.TestAttempts
-            .Where(a => a.StudentId == studentId && a.SubmittedAt != null)
+        var testIds = tests.Select(t => t.Id).ToList();
+        var lastAttempts = await _context.TestAttempts.AsNoTracking()
+            .Where(a => a.StudentId == studentId && a.SubmittedAt != null && testIds.Contains(a.TestId))
             .GroupBy(a => a.TestId)
             .Select(g => g.OrderByDescending(a => a.SubmittedAt).First())
             .ToListAsync(cancellationToken);
         var lastAttemptsByTest = lastAttempts.ToDictionary(a => a.TestId);
 
-        return tests.Select(t =>
+        foreach (var dto in tests)
         {
-            var dto = new TestSummaryDto
-            {
-                Id = t.Id, Title = t.Title, QuestionAreaName = t.QuestionArea?.Name ?? string.Empty,
-                QuestionCount = t.Questions.Count,
-            };
-
-            if (lastAttemptsByTest.TryGetValue(t.Id, out var attempt))
+            if (lastAttemptsByTest.TryGetValue(dto.Id, out var attempt))
             {
                 dto.HasAttempt = true;
                 dto.LastPercent = attempt.Percent;
@@ -55,9 +61,9 @@ public class TestAttemptService
                 dto.LastTotal = attempt.CorrectCount + attempt.IncorrectCount;
                 dto.LastPassed = attempt.Passed;
             }
+        }
 
-            return dto;
-        }).ToList();
+        return new PagedResult<TestSummaryDto> { ResultList = tests, Count = count };
     }
 
     public async Task<TestAttemptStartDto> StartAttemptAsync(int testId, CancellationToken cancellationToken)
@@ -69,7 +75,7 @@ public class TestAttemptService
 
         if (test.Questions.Count == 0)
         {
-            throw new BusinessException("Test trenutno nema pitanja.");
+            throw new BusinessException(Messages.TestHasNoQuestions);
         }
 
         var attempt = new TestAttempt { StudentId = _currentUser.UserId, TestId = testId };
@@ -91,6 +97,7 @@ public class TestAttemptService
     public async Task<TestResultDto> SubmitAttemptAsync(int attemptId, SubmitTestAttemptRequest request, CancellationToken cancellationToken)
     {
         var attempt = await _context.TestAttempts
+            .Include(a => a.Test).ThenInclude(t => t!.Questions).ThenInclude(q => q.QuestionArea)
             .Include(a => a.Test).ThenInclude(t => t!.Questions).ThenInclude(q => q.AnswerOptions)
             .FirstOrDefaultAsync(a => a.Id == attemptId, cancellationToken)
             ?? throw new NotFoundException(nameof(TestAttempt), attemptId);
@@ -101,10 +108,15 @@ public class TestAttemptService
         }
         if (attempt.SubmittedAt is not null)
         {
-            throw new BusinessException("Ovaj pokušaj je već predat.");
+            throw new BusinessException(Messages.AttemptAlreadySubmitted);
         }
 
-        var answersByQuestion = request.Answers.ToDictionary(a => a.QuestionId, a => a.SelectedAnswerOptionId);
+        // The last answer sent for a question wins; a duplicate must not crash the request.
+        var answersByQuestion = request.Answers
+            .GroupBy(a => a.QuestionId)
+            .ToDictionary(g => g.Key, g => g.Last().SelectedAnswerOptionId);
+        EnsureAnswersBelongToTest(attempt.Test!, answersByQuestion);
+
         var weakAreaNames = new HashSet<string>();
         var correctCount = 0;
         var incorrectCount = 0;
@@ -122,10 +134,9 @@ public class TestAttemptService
             else
             {
                 incorrectCount++;
-                var area = await _context.QuestionAreas.FirstOrDefaultAsync(a => a.Id == question.QuestionAreaId, cancellationToken);
-                if (area is not null)
+                if (question.QuestionArea is not null)
                 {
-                    weakAreaNames.Add(area.Name);
+                    weakAreaNames.Add(question.QuestionArea.Name);
                 }
             }
 
@@ -152,6 +163,20 @@ public class TestAttemptService
         };
     }
 
+    /// <summary>A selected option must be one of the options of that very question - anything else
+    /// (a forged id, an option of another question) is a validation error, not a database failure.</summary>
+    private static void EnsureAnswersBelongToTest(Test test, IReadOnlyDictionary<int, int?> answersByQuestion)
+    {
+        foreach (var (questionId, selectedOptionId) in answersByQuestion)
+        {
+            var question = test.Questions.FirstOrDefault(q => q.Id == questionId);
+            if (question is null || (selectedOptionId.HasValue && question.AnswerOptions.All(o => o.Id != selectedOptionId.Value)))
+            {
+                throw new ValidationException(nameof(SubmitTestAttemptRequest.Answers), Messages.AnswerOptionInvalid);
+            }
+        }
+    }
+
     public async Task<TestAttemptReviewDto> GetReviewAsync(int attemptId, CancellationToken cancellationToken)
     {
         var attempt = await _context.TestAttempts.FirstOrDefaultAsync(a => a.Id == attemptId, cancellationToken)
@@ -163,7 +188,7 @@ public class TestAttemptService
         }
         if (attempt.SubmittedAt is null)
         {
-            throw new BusinessException("Pregled je dostupan tek nakon predaje testa.");
+            throw new BusinessException(Messages.AttemptReviewNotAvailable);
         }
 
         var incorrectAnswers = await _context.AttemptAnswers

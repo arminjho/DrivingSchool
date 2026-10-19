@@ -9,6 +9,7 @@ import '../../core/validators.dart';
 import '../../l10n/app_strings.dart';
 import '../../widgets/ui/app_action_button.dart';
 import '../../widgets/ui/app_card.dart';
+import '../../widgets/ui/app_messages.dart';
 import '../../widgets/ui/app_states.dart';
 import '../../widgets/ui/app_text_field.dart';
 import 'reset_password_screen.dart';
@@ -39,6 +40,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     try {
       await context.read<AuthApi>().forgotPassword(email);
       if (!mounted) return;
+      showSuccessMessage(context, AppStrings.forgotPasswordSent);
       await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ResetPasswordScreen(email: email)));
       if (mounted) Navigator.of(context).pop();
     } on Object catch (error) {

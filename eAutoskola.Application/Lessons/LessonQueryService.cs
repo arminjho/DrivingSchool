@@ -13,12 +13,6 @@ namespace eAutoskola.Application.Lessons;
 
 public class LessonQueryService
 {
-    /// <summary>Instructor working hours - simple constants, not per-instructor configurable
-    /// (kept deliberately simple per upute.md's anti-overengineering guidance).</summary>
-    private static readonly TimeSpan WorkDayStart = TimeSpan.FromHours(8);
-    private static readonly TimeSpan WorkDayEnd = TimeSpan.FromHours(18);
-    private static readonly TimeSpan SlotDuration = TimeSpan.FromHours(1);
-
     private readonly EAutoskolaDbContext _context;
     private readonly ICurrentUserService _currentUser;
 
@@ -30,8 +24,8 @@ public class LessonQueryService
 
     public async Task<List<DateTime>> GetAvailableSlotsAsync(int instructorId, DateOnly date, CancellationToken cancellationToken)
     {
-        var dayStartUtc = date.ToDateTime(TimeOnly.FromTimeSpan(WorkDayStart), DateTimeKind.Utc);
-        var dayEndUtc = date.ToDateTime(TimeOnly.FromTimeSpan(WorkDayEnd), DateTimeKind.Utc);
+        var dayStartUtc = date.ToDateTime(TimeOnly.FromTimeSpan(LessonSlotPolicy.WorkDayStart), DateTimeKind.Utc);
+        var dayEndUtc = date.ToDateTime(TimeOnly.FromTimeSpan(LessonSlotPolicy.WorkDayEnd), DateTimeKind.Utc);
 
         var bookedSlots = await _context.Lessons
             .Where(l => l.InstructorId == instructorId
@@ -41,7 +35,7 @@ public class LessonQueryService
             .ToListAsync(cancellationToken);
 
         var slots = new List<DateTime>();
-        for (var slotStart = dayStartUtc; slotStart + SlotDuration <= dayEndUtc; slotStart += SlotDuration)
+        for (var slotStart = dayStartUtc; slotStart + LessonSlotPolicy.SlotDuration <= dayEndUtc; slotStart += LessonSlotPolicy.SlotDuration)
         {
             if (!bookedSlots.Contains(slotStart) && slotStart > DateTime.UtcNow)
             {
@@ -130,16 +124,23 @@ public class LessonQueryService
         var now = DateTime.UtcNow;
         var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        var completedLessons = await _context.Lessons
+        // One aggregate query - the counts and the average are computed by the database.
+        var statistics = await _context.Lessons
             .Where(l => l.InstructorId == instructorId && l.Status == LessonStatus.Completed)
-            .Select(l => new { l.CompletedAt, l.Rating })
-            .ToListAsync(cancellationToken);
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                ThisMonth = g.Count(l => l.CompletedAt >= monthStart),
+                AverageRating = g.Average(l => (double?)l.Rating),
+            })
+            .FirstOrDefaultAsync(cancellationToken);
 
         return new InstructorStatisticsDto
         {
-            CompletedTotal = completedLessons.Count,
-            CompletedThisMonth = completedLessons.Count(l => l.CompletedAt >= monthStart),
-            AverageRating = completedLessons.Count > 0 ? completedLessons.Average(l => l.Rating ?? 0) : 0,
+            CompletedTotal = statistics?.Total ?? 0,
+            CompletedThisMonth = statistics?.ThisMonth ?? 0,
+            AverageRating = statistics?.AverageRating ?? 0,
         };
     }
 
@@ -223,15 +224,29 @@ public class LessonQueryService
         return dtos;
     }
 
+    /// <summary>StartsAtUtc unless the search object allows CreatedAt and asks for it; Id breaks
+    /// ties so paging never repeats or skips a row.</summary>
+    private static IOrderedQueryable<Lesson> ApplyOrder(IQueryable<Lesson> query, BaseSearchObject search)
+    {
+        var ascending = search.SortDirection.Equals("asc", StringComparison.OrdinalIgnoreCase);
+
+        if (search.IsSortable(search.SortBy) && string.Equals(search.SortBy, nameof(Lesson.CreatedAt), StringComparison.OrdinalIgnoreCase))
+        {
+            return ascending
+                ? query.OrderBy(l => l.CreatedAt).ThenBy(l => l.Id)
+                : query.OrderByDescending(l => l.CreatedAt).ThenByDescending(l => l.Id);
+        }
+
+        return ascending
+            ? query.OrderBy(l => l.StartsAtUtc).ThenBy(l => l.Id)
+            : query.OrderByDescending(l => l.StartsAtUtc).ThenByDescending(l => l.Id);
+    }
+
     private async Task<PagedResult<LessonDto>> ToPagedResultAsync(IQueryable<Lesson> query, BaseSearchObject search, CancellationToken cancellationToken)
     {
         var count = await query.CountAsync(cancellationToken);
 
-        query = search.SortDirection.Equals("asc", StringComparison.OrdinalIgnoreCase)
-            ? query.OrderBy(l => l.StartsAtUtc)
-            : query.OrderByDescending(l => l.StartsAtUtc);
-
-        var lessons = await query
+        var lessons = await ApplyOrder(query, search)
             .Skip((search.Page - 1) * search.PageSize)
             .Take(search.PageSize)
             .ToListAsync(cancellationToken);

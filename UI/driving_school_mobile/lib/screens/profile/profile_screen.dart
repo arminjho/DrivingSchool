@@ -13,6 +13,7 @@ import '../../core/form_errors.dart';
 import '../../core/image_validation.dart';
 import '../../core/validators.dart';
 import '../../l10n/app_strings.dart';
+import '../../layouts/shell_scope.dart';
 import '../../models/city.dart';
 import '../../models/user.dart';
 import '../../models/vehicle_category.dart';
@@ -168,7 +169,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final me = _me;
 
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.myProfile)),
+      appBar: ShellScope.isInside(context) ? null : AppBar(title: const Text(AppStrings.myProfile)),
       body: me == null
           ? Padding(
               padding: AppSpacing.page,
@@ -178,6 +179,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: AppSpacing.page,
               children: [
                 Center(child: _avatar(context, me)),
+                const SizedBox(height: AppSpacing.sm),
+                Center(child: Text(me.fullName, style: context.text.titleMedium)),
+                Center(child: Text(me.email, style: context.text.bodySmall?.copyWith(color: context.colors.textMuted))),
                 const SizedBox(height: AppSpacing.lg),
                 AppCard(
                   child: FormBuilder(
@@ -235,6 +239,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       if (_showPasswordSection) ...[
                         const SizedBox(height: AppSpacing.md),
+                        Text(AppStrings.changePasswordTitle, style: context.text.titleSmall),
+                        const SizedBox(height: AppSpacing.sm),
                         FormBuilder(
                           key: _passwordFormKey,
                           child: Column(

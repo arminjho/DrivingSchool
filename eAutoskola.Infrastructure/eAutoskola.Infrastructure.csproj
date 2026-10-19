@@ -30,6 +30,10 @@
     <PackageReference Include="QuestPDF" Version="2026.7.2" />
     <PackageReference Include="RabbitMQ.Client" Version="7.2.2" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
+    <!-- Transitive dependencies (Microsoft.Data.SqlClient -> Pkcs; EF Core Design -> Xml) pinned to
+         patched releases so the NuGet audit (NU1902/NU1903) stays clean. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.13" />
   </ItemGroup>
 
   <PropertyGroup>

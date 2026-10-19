@@ -21,7 +21,7 @@ public class StudyLessonController : BaseCRUDController<StudyLessonDto, StudyLes
 
     [HttpGet("my")]
     [Authorize(Roles = Role.Student)]
-    public async Task<ActionResult<PagedResult<StudentStudyLessonDto>>> GetMy([FromQuery] BaseSearchObjectQuery criteria, CancellationToken cancellationToken)
+    public async Task<ActionResult<PagedResult<StudentStudyLessonDto>>> GetMy([FromQuery] PageQuery criteria, CancellationToken cancellationToken)
         => Ok(await _service.GetMyLessonsAsync(criteria, cancellationToken));
 
     [Authorize(Roles = Role.Admin)]
@@ -33,8 +33,3 @@ public class StudyLessonController : BaseCRUDController<StudyLessonDto, StudyLes
     [Authorize(Roles = Role.Admin)]
     public override Task<IActionResult> Delete(int id, CancellationToken cancellationToken) => base.Delete(id, cancellationToken);
 }
-
-/// <summary>BaseSearchObject has no public constructor-free concrete type usable directly as a
-/// [FromQuery] model - this tiny concrete subclass exists only so "my" can bind Page/PageSize
-/// from the query string without needing lesson-specific filters.</summary>
-public class BaseSearchObjectQuery : BaseSearchObject;

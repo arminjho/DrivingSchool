@@ -14,7 +14,7 @@ public class PaymentServiceTests
 {
     private static PaymentService CreateService(PaymentTestFixture f)
         => new(f.Context, f.CurrentUser.Object, f.PayPal.Object,
-            new NotificationService(f.Context, f.CurrentUser.Object, f.Pusher.Object),
+            new NotificationService(f.Context, f.CurrentUser.Object, f.Pusher.Object, NullLogger<NotificationService>.Instance),
             f.Publisher.Object, NullLogger<PaymentService>.Instance);
 
     private static void SetupCreateOrder(PaymentTestFixture f, string orderId = "NEW-ORDER")
@@ -137,6 +137,23 @@ public class PaymentServiceTests
         Assert.Equal(InstallmentStatus.Paid, payment.Installment!.Status);
         Assert.Single(await f.Context.Notifications.Where(n => n.Type == NotificationType.PaymentReceived).ToListAsync());
         f.Publisher.Verify(p => p.PublishAsync(It.Is<PaymentReceivedMessage>(m => m.Amount == 40m), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Capture_AlsoTellsTheAdministrators()
+    {
+        var f = new PaymentTestFixture();
+        f.Context.Users.Add(new Domain.Entities.User { Id = 20, Email = "admin@test.ba", PasswordHash = "x", Role = Domain.Security.Role.Admin, FirstName = "Admin", LastName = "Test", PhoneNumber = "+387 61 000 020" });
+        await f.Context.SaveChangesAsync();
+        var installment = f.AddInstallment();
+        f.AddPayment(installment, PaymentStatus.Created);
+        f.PayPal.Setup(p => p.CaptureOrderAsync("ORDER-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PayPalCaptureResult(true, "CAPTURE-9", 20.45m, "EUR", null));
+
+        await CreateService(f).CaptureAsync("ORDER-1", default);
+
+        var received = await f.Context.Notifications.Where(n => n.Type == NotificationType.PaymentReceived).Select(n => n.UserId).ToListAsync();
+        Assert.Equal([PaymentTestFixture.StudentId, 20], received.Order());
     }
 
     [Fact]

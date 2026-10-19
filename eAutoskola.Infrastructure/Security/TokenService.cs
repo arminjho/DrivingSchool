@@ -20,11 +20,14 @@ public class TokenService : ITokenService
     public (string Token, string Jti, DateTime ExpiresAtUtc) IssueToken(User user)
     {
         var jti = Guid.NewGuid().ToString();
-        var expiresAtUtc = DateTime.UtcNow.AddMinutes(_options.ExpiryMinutes);
+        var issuedAtUtc = DateTime.UtcNow;
+        var expiresAtUtc = issuedAtUtc.AddMinutes(_options.ExpiryMinutes);
 
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Jti, jti),
+            // Checked on every request against User.TokensValidFromUtc (password change / deactivation).
+            new(JwtRegisteredClaimNames.Iat, EpochTime.GetIntDate(issuedAtUtc).ToString(), ClaimValueTypes.Integer64),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.Role, user.Role),

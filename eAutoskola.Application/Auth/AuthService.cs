@@ -47,8 +47,8 @@ public class AuthService : IAuthService
         var errors = new Dictionary<string, string[]>();
         FieldValidationRules.RequireEmail(errors, nameof(request.Email), request.Email);
         FieldValidationRules.RequirePassword(errors, nameof(request.Password), request.Password);
-        FieldValidationRules.RequireText(errors, nameof(request.FirstName), request.FirstName, 100, "Ime");
-        FieldValidationRules.RequireText(errors, nameof(request.LastName), request.LastName, 100, "Prezime");
+        FieldValidationRules.RequireText(errors, nameof(request.FirstName), request.FirstName, 100, Messages.FirstNameLabel);
+        FieldValidationRules.RequireText(errors, nameof(request.LastName), request.LastName, 100, Messages.LastNameLabel);
         FieldValidationRules.RequirePhone(errors, nameof(request.PhoneNumber), request.PhoneNumber);
 
         if (request.Password != request.ConfirmPassword)
@@ -58,12 +58,17 @@ public class AuthService : IAuthService
 
         if (errors.Count == 0 && await _context.Users.AnyAsync(u => u.Email == request.Email, cancellationToken))
         {
-            FieldValidationRules.Add(errors, nameof(request.Email), "Korisnik sa ovom e-mail adresom već postoji.");
+            FieldValidationRules.Add(errors, nameof(request.Email), Messages.EmailAlreadyExists);
         }
 
         if (errors.Count == 0 && !await _context.VehicleCategories.AnyAsync(c => c.Id == request.VehicleCategoryId, cancellationToken))
         {
-            FieldValidationRules.Add(errors, nameof(request.VehicleCategoryId), "Odabrana kategorija vozila ne postoji.");
+            FieldValidationRules.Add(errors, nameof(request.VehicleCategoryId), Messages.VehicleCategoryNotFound);
+        }
+
+        if (errors.Count == 0 && request.CityId is { } cityId && !await _context.Cities.AnyAsync(c => c.Id == cityId, cancellationToken))
+        {
+            FieldValidationRules.Add(errors, nameof(request.CityId), Messages.CityNotFound);
         }
 
         FieldValidationRules.ThrowIfAny(errors);
@@ -110,8 +115,8 @@ public class AuthService : IAuthService
         return IssueAuthResponse(user);
     }
 
-    public Task LogoutAsync(string jti, DateTime expiresAtUtc, CancellationToken cancellationToken = default)
-        => _tokenBlocklistService.RevokeAsync(jti, expiresAtUtc, cancellationToken);
+    public Task LogoutAsync(int userId, string jti, DateTime expiresAtUtc, CancellationToken cancellationToken = default)
+        => _tokenBlocklistService.RevokeAsync(userId, jti, expiresAtUtc, cancellationToken);
 
     public async Task ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default)
     {
@@ -166,9 +171,8 @@ public class AuthService : IAuthService
 
         user.PasswordHash = PasswordHasher.Hash(request.NewPassword);
         resetToken.IsUsed = true;
+        await _tokenBlocklistService.StageTokenInvalidationAsync(user.Id, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
-
-        await _tokenBlocklistService.InvalidateTokensValidFromAsync(user.Id, cancellationToken);
     }
 
     private AuthResponseDto IssueAuthResponse(User user)

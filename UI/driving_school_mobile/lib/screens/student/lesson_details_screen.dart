@@ -106,7 +106,7 @@ class _LessonDetailsScreenState extends State<LessonDetailsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(AppStrings.confirmDeleteMessage(AppFormat.dateTime(lesson.startsAtUtc)), style: dialogContext.text.bodyMedium),
+              Text(AppStrings.confirmCancelLessonMessage(AppFormat.dateTime(lesson.startsAtUtc)), style: dialogContext.text.bodyMedium),
               if (requiresReason) ...[
                 const SizedBox(height: AppSpacing.md),
                 TextField(
@@ -174,10 +174,11 @@ class _LessonDetailsScreenState extends State<LessonDetailsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _infoRow(context, icon: AppIcons.date, label: AppStrings.infoDateTime, value: AppFormat.dateTime(lesson.startsAtUtc)),
+                      _infoRow(context, icon: AppIcons.date, label: AppStrings.infoDateTime, value: AppFormat.dateTimeRange(lesson.startsAtUtc, lesson.endsAtUtc)),
                       _infoRow(context, icon: AppIcons.place, label: AppStrings.infoZone, value: lesson.drivingZoneName),
                       _infoRow(context, icon: AppIcons.person, label: AppStrings.infoInstructor, value: lesson.instructorFullName),
-                      _infoRow(context, icon: AppIcons.vehicle, label: AppStrings.infoVehicle, value: lesson.vehicleRegistrationNumber ?? AppStrings.noVehicleAssignedYet),
+                      _infoRow(context, icon: AppIcons.vehicle, label: AppStrings.infoVehicle, value: lesson.vehicleLabel ?? AppStrings.noVehicleAssignedYet),
+                      _infoRow(context, icon: AppIcons.time, label: AppStrings.infoDuration, value: AppStrings.durationMinutes(lesson.endsAtUtc.difference(lesson.startsAtUtc).inMinutes)),
                       if (lesson.status == 'Completed') ...[
                         const Divider(height: AppSpacing.lg),
                         Row(

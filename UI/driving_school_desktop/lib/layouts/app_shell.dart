@@ -273,7 +273,15 @@ class _TopBar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(breadcrumb, style: context.text.bodySmall?.copyWith(color: c.textMuted)),
-                Text(title, style: context.text.titleLarge),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(title, style: context.text.titleLarge),
+                    const SizedBox(width: AppSpacing.sm),
+                    Flexible(child: Text(subtitle, style: context.text.bodySmall?.copyWith(color: c.textMuted), overflow: TextOverflow.ellipsis)),
+                  ],
+                ),
               ],
             ),
           ),

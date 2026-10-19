@@ -173,7 +173,7 @@ public class PayPalClient : IPayPalClient
     {
         var token = await GetAccessTokenAsync(cancellationToken);
 
-        var request = new HttpRequestMessage(method, _options.ApiBaseUrl + path)
+        using var request = new HttpRequestMessage(method, _options.ApiBaseUrl + path)
         {
             Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
         };
@@ -190,7 +190,7 @@ public class PayPalClient : IPayPalClient
             return cached;
         }
 
-        var request = new HttpRequestMessage(HttpMethod.Post, _options.ApiBaseUrl + "/v1/oauth2/token")
+        using var request = new HttpRequestMessage(HttpMethod.Post, _options.ApiBaseUrl + "/v1/oauth2/token")
         {
             Content = new FormUrlEncodedContent([new KeyValuePair<string, string>("grant_type", "client_credentials")]),
         };

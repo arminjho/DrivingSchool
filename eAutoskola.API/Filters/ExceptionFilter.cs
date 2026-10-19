@@ -2,7 +2,6 @@ using System.Net;
 using System.Security.Claims;
 using eAutoskola.Domain.Resources;
 using eAutoskola.Domain.Exceptions;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 

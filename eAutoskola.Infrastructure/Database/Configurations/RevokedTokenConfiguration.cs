@@ -10,5 +10,11 @@ public class RevokedTokenConfiguration : IEntityTypeConfiguration<RevokedToken>
     {
         builder.Property(t => t.Jti).HasMaxLength(100).IsRequired();
         builder.HasIndex(t => t.Jti).IsUnique();
+
+        // A user's revoked tokens go with the user.
+        builder.HasOne(t => t.User)
+            .WithMany()
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

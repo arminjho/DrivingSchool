@@ -3,6 +3,7 @@ using eAutoskola.Application.Common;
 using eAutoskola.Domain.Entities;
 using eAutoskola.Domain.Enums;
 using eAutoskola.Domain.Exceptions;
+using eAutoskola.Domain.Resources;
 using eAutoskola.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 
@@ -60,7 +61,7 @@ public partial class VehicleCrudService : BaseCRUDService<VehicleDto, VehicleSea
 
         if (hasFutureConfirmedLesson)
         {
-            throw new BusinessException("Vozilo se ne može obrisati jer je dodijeljeno potvrđenom času vožnje u budućnosti.");
+            throw new BusinessException(Messages.VehicleHasFutureLesson);
         }
     }
 
@@ -70,11 +71,11 @@ public partial class VehicleCrudService : BaseCRUDService<VehicleDto, VehicleSea
 
         if (string.IsNullOrWhiteSpace(registrationNumber) || !RegistrationNumberPattern().IsMatch(registrationNumber))
         {
-            FieldValidationRules.Add(errors, nameof(VehicleInsertRequest.RegistrationNumber), "Unesite validnu registarsku oznaku u formatu: X00-X-000 (npr. E22-A-123).");
+            FieldValidationRules.Add(errors, nameof(VehicleInsertRequest.RegistrationNumber), Messages.RegistrationNumberInvalid);
         }
         else if (await Context.Vehicles.AnyAsync(v => v.RegistrationNumber == registrationNumber && v.Id != excludingId, cancellationToken))
         {
-            FieldValidationRules.Add(errors, nameof(VehicleInsertRequest.RegistrationNumber), "Vozilo sa ovom registarskom oznakom već postoji.");
+            FieldValidationRules.Add(errors, nameof(VehicleInsertRequest.RegistrationNumber), Messages.RegistrationNumberExists);
         }
 
         FieldValidationRules.ThrowIfAny(errors);

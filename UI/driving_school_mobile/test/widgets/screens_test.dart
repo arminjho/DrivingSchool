@@ -273,8 +273,8 @@ void main() {
   });
 
   group('PagedListView', () {
-    PagedController<String> controllerWith(Future<PagedResult<String>> Function(PagedQuery) fetch, {bool accumulate = true}) =>
-        PagedController<String>(fetch: fetch, accumulate: accumulate, searchParam: 'name', debounce: const Duration(milliseconds: 10));
+    PagedController<String> controllerWith(Future<PagedResult<String>> Function(PagedQuery) fetch) =>
+        PagedController<String>(fetch: fetch, searchParam: 'name', debounce: const Duration(milliseconds: 10));
 
     Widget list(PagedController<String> controller) => SizedBox(
           height: 600,
@@ -334,7 +334,7 @@ void main() {
       expect(find.text('Tuzla'), findsOneWidget);
     });
 
-    testApp('scrolling near the bottom loads the next page in accumulate mode', (tester) async {
+    testApp('scrolling near the bottom loads the next page', (tester) async {
       final queries = <PagedQuery>[];
       final controller = controllerWith((query) async {
         queries.add(query);

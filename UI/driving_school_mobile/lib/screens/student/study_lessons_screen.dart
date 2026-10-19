@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/auth_session.dart';
 import '../../core/paged_controller.dart';
 import '../../l10n/app_strings.dart';
+import '../../layouts/shell_scope.dart';
 import '../../models/student_study_lesson.dart';
 import '../../models/study_lesson.dart';
 import '../../providers/study_lesson_provider.dart';
@@ -30,8 +31,8 @@ class _StudyLessonsScreenState extends State<StudyLessonsScreen> with SingleTick
     super.initState();
     _provider = StudyLessonProvider(context.read<AuthSession>());
     _tabController = TabController(length: 2, vsync: this);
-    _allController = PagedController<StudyLesson>(fetch: _provider.getPaged, searchParam: 'title', accumulate: true);
-    _myController = PagedController<StudentStudyLesson>(fetch: _provider.getMy, accumulate: true);
+    _allController = PagedController<StudyLesson>(fetch: _provider.getPaged, searchParam: 'title');
+    _myController = PagedController<StudentStudyLesson>(fetch: _provider.getMy);
     _allController.load();
     _myController.load();
   }
@@ -50,37 +51,44 @@ class _StudyLessonsScreenState extends State<StudyLessonsScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
+    final inShell = ShellScope.isInside(context);
+    final tabBar = TabBar(controller: _tabController, tabs: const [Tab(text: AppStrings.tabAllLessons), Tab(text: AppStrings.tabMyLessons)]);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(AppStrings.studyTitle),
-        bottom: TabBar(controller: _tabController, tabs: const [Tab(text: AppStrings.tabAllLessons), Tab(text: AppStrings.tabMyLessons)]),
-      ),
-      body: TabBarView(
-        controller: _tabController,
+      appBar: inShell ? null : AppBar(title: const Text(AppStrings.studyTitle), bottom: tabBar),
+      body: Column(
         children: [
-          PagedListView<StudyLesson>(
-            controller: _allController,
-            emptyIcon: Icons.menu_book_outlined,
-            emptyMessage: AppStrings.noStudyLessons,
-            itemBuilder: (context, lesson) => AppListCard(
-              leading: const Icon(Icons.menu_book_outlined),
-              title: lesson.title,
-              subtitle: '${lesson.chapterLabel} · ${AppStrings.subLessonCount(lesson.sectionCount)}',
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => _openLesson(lesson.id),
-            ),
-          ),
-          PagedListView<StudentStudyLesson>(
-            controller: _myController,
-            showSearch: false,
-            emptyIcon: Icons.menu_book_outlined,
-            emptyMessage: AppStrings.noMyStudyLessons,
-            itemBuilder: (context, lesson) => AppListCard(
-              leading: const Icon(Icons.menu_book_outlined),
-              title: lesson.title,
-              subtitle: '${lesson.chapterLabel} · ${AppStrings.subLessonCount(lesson.sectionCount)} · ${lesson.progressPercent}%',
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => _openLesson(lesson.studyLessonId),
+          if (inShell) tabBar,
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                PagedListView<StudyLesson>(
+                  controller: _allController,
+                  emptyIcon: Icons.menu_book_outlined,
+                  emptyMessage: AppStrings.noStudyLessons,
+                  itemBuilder: (context, lesson) => AppListCard(
+                    leading: const Icon(Icons.menu_book_outlined),
+                    title: lesson.title,
+                    subtitle: '${lesson.chapterLabel} · ${AppStrings.subLessonCount(lesson.sectionCount)}',
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _openLesson(lesson.id),
+                  ),
+                ),
+                PagedListView<StudentStudyLesson>(
+                  controller: _myController,
+                  showSearch: false,
+                  emptyIcon: Icons.menu_book_outlined,
+                  emptyMessage: AppStrings.noMyStudyLessons,
+                  itemBuilder: (context, lesson) => AppListCard(
+                    leading: const Icon(Icons.menu_book_outlined),
+                    title: lesson.title,
+                    subtitle: '${lesson.chapterLabel} · ${AppStrings.subLessonCount(lesson.sectionCount)} · ${lesson.progressPercent}%',
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _openLesson(lesson.studyLessonId),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

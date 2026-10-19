@@ -19,6 +19,7 @@ import '../../widgets/ui/app_dialog.dart';
 import '../../widgets/ui/app_messages.dart';
 import '../../widgets/ui/app_states.dart';
 import '../../widgets/ui/app_text_field.dart';
+import '../../widgets/ui/form_prerequisites.dart';
 import '../../widgets/ui/paged_table.dart';
 import 'sections_screen.dart';
 
@@ -53,6 +54,9 @@ class _StudyLessonsScreenState extends State<StudyLessonsScreen> {
   }
 
   Future<void> _openForm({StudyLesson? initial}) async {
+    if (initial == null && !await requireRecords(context, count: _areaProvider.totalCount, missingMessage: AppStrings.noQuestionAreasPrefix)) return;
+    if (!mounted) return;
+
     final formKey = GlobalKey<FormBuilderState>();
     var isSubmitting = false;
     String? banner;
@@ -130,7 +134,7 @@ class _StudyLessonsScreenState extends State<StudyLessonsScreen> {
                 AppTextField(
                   name: 'chapterLabel',
                   label: AppStrings.fieldChapterLabel,
-                  hint: 'npr. Poglavlje 3.1',
+                  hint: AppStrings.chapterLabelHint,
                   initialValue: initial?.chapterLabel,
                   validator: AppValidators.compose([AppValidators.required(), AppValidators.maxLength(50, AppStrings.fieldChapterLabel)]),
                 ),
@@ -191,8 +195,6 @@ class _StudyLessonsScreenState extends State<StudyLessonsScreen> {
   Widget build(BuildContext context) {
     return PagedTable<StudyLesson>(
       controller: _controller,
-      title: AppStrings.studyLessonsTitle,
-      subtitle: AppStrings.studyLessonsSubtitle,
       addLabel: AppStrings.studyLessonsAddNew,
       onAdd: () => _openForm(),
       onEdit: (lesson) => _openForm(initial: lesson),

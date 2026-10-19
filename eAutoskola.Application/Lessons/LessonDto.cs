@@ -7,10 +7,14 @@ public class LessonDto
     public string StudentFullName { get; set; } = string.Empty;
     public string StudentEmail { get; set; } = string.Empty;
     public string StudentPhoneNumber { get; set; } = string.Empty;
+    public string? StudentProfileImagePath { get; set; }
     public int InstructorId { get; set; }
     public string InstructorFullName { get; set; } = string.Empty;
+    public string? InstructorProfileImagePath { get; set; }
     public int? VehicleId { get; set; }
     public string? VehicleRegistrationNumber { get; set; }
+    public string? VehicleMake { get; set; }
+    public string? VehicleModel { get; set; }
     public int DrivingZoneId { get; set; }
     public string DrivingZoneName { get; set; } = string.Empty;
     public DateTime StartsAtUtc { get; set; }

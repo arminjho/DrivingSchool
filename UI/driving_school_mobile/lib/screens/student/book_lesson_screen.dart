@@ -18,8 +18,10 @@ import '../../widgets/ui/api_dropdown_field.dart';
 import '../../widgets/ui/app_action_button.dart';
 import '../../widgets/ui/app_card.dart';
 import '../../widgets/ui/app_date_fields.dart';
+import '../../widgets/ui/app_messages.dart';
 import '../../widgets/ui/app_states.dart';
 import '../../widgets/ui/app_text_field.dart';
+import 'my_lessons_screen.dart';
 
 /// 4.2.2 - instructor, date, an available slot for that instructor/date, zone, and an optional
 /// note. The slot list is server-side truth (availability/overlap is never trusted client-side).
@@ -68,11 +70,17 @@ class _BookLessonScreenState extends State<BookLessonScreen> {
     try {
       await _lessonProvider.book(
         instructorId: form.value['instructorId'] as int,
-        startsAtUtc: form.value['slot'] as DateTime,
+        startsAtUtc: DateTime.fromMillisecondsSinceEpoch(form.value['slot'] as int, isUtc: true),
         drivingZoneId: form.value['drivingZoneId'] as int,
         note: (form.value['note'] as String?)?.trim().isEmpty ?? true ? null : form.value['note'] as String?,
       );
-      if (mounted) Navigator.of(context).pop(true);
+      if (!mounted) return;
+      showSuccessMessage(context, AppStrings.bookingSuccess);
+      // The business flow returns to the history, where the new request is the first card (upute.md §6).
+      await Navigator.of(context).pushReplacement<void, bool>(
+        MaterialPageRoute<void>(builder: (_) => const MyLessonsScreen()),
+        result: true,
+      );
     } on Object catch (error) {
       if (!mounted) return;
       setState(() => _banner = applyApiErrors(_formKey, error));

@@ -14,8 +14,6 @@ abstract final class AppStrings {
   static const String cancel = 'Odustani';
   static const String confirm = 'Potvrdi';
   static const String delete = 'Obriši';
-  static const String edit = 'Uredi';
-  static const String addNew = 'Dodaj';
   static const String close = 'Zatvori';
   static const String retry = 'Pokušaj ponovo';
   static const String back = 'Nazad';
@@ -24,7 +22,6 @@ abstract final class AppStrings {
   static const String logout = 'Odjava';
 
   // --- Auth ---
-  static const String loginTitle = 'Prijava';
   static const String loginSubtitle = 'Aplikacija za učenike i instruktore autoškole';
   static const String loginAction = 'Prijavi se';
   static const String usernameLabel = 'Korisničko ime ili e-mail';
@@ -35,8 +32,6 @@ abstract final class AppStrings {
   static const String loginFailed = 'Prijava nije uspjela. Provjerite korisničko ime i lozinku.';
 
   // --- Shell ---
-  static const String homeTitle = 'Početna';
-  static const String homeSubtitle = 'Pregled aktivnosti — eAutoškola';
   static const String notificationsTitle = 'Obavijesti';
   static const String notificationsSubtitle = 'Sistemske obavijesti o vašem nalogu';
   static String welcome(String name) => 'Dobrodošli, $name';
@@ -129,6 +124,8 @@ abstract final class AppStrings {
   static const String cancelNotAllowedCancelled = 'Čas je već otkazan.';
   static const String cancelNotAllowedCutoff = 'Otkazivanje je moguće najkasnije 24 sata prije termina.';
   static const String lessonCancelledMessage = 'Čas je otkazan.';
+  static String confirmCancelLessonMessage(String when) => 'Da li ste sigurni da želite otkazati čas zakazan za $when?';
+  static String durationMinutes(int minutes) => '$minutes min';
   static const String rescheduleSuccess = 'Termin je izmijenjen.';
   static const String noVehicleAssignedYet = 'Vozilo još nije dodijeljeno.';
 
@@ -139,7 +136,6 @@ abstract final class AppStrings {
   static const String testFailed = 'Nije položen';
   static const String testNotAttempted = 'Nije riješeno';
   static String testScoreLine(int correct, int total) => '$correct/$total tačnih · $total pitanja';
-  static const String startTest = 'Pokreni test';
 
   // --- Question (4.2.6) ---
   static String questionProgress(int current, int total) => 'Pitanje $current / $total';
@@ -181,7 +177,6 @@ abstract final class AppStrings {
   static String subLessonCount(int count) => count == 1 ? '1 pod-lekcija' : '$count pod-lekcija';
   static const String noStudyLessons = 'Nema dostupnih lekcija.';
   static const String noMyStudyLessons = 'Još nemate otvorenih lekcija.';
-  static const String noMyStudyLessonsHint = 'Otvorite lekciju iz "Sve lekcije" da počnete.';
 
   // --- Finance & payment (4.2.10) ---
   static const String financeTitle = 'Finansije i plaćanje';
@@ -195,18 +190,17 @@ abstract final class AppStrings {
   static const String amountToPay = 'Iznos za plaćanje';
   static const String payWithPayPal = '⚡ Plaćanje putem PayPal-a';
   static const String paypalSecureNote = '🔒 Sigurno plaćanje putem PayPal Sandbox servisa';
+  static const String confirmPaymentTitle = 'Potvrda plaćanja';
+  static String paymentAmountLine(String amount) => '$amountToPay — $amount';
   static const String paymentSuccess = 'Uplata je uspješno izvršena.';
   static const String paymentCancelledMessage = 'Plaćanje je otkazano.';
   static const String paymentFailed = 'Plaćanje nije odobreno na PayPal-u. Pokušajte ponovo.';
+  static const String paymentUnavailableTitle = 'Plaćanje nije dostupno';
+  static const String paymentUnavailableMessage = 'Plaćanje putem PayPal-a radi u Android aplikaciji.';
   static const String refundLabel = 'Povrat';
-  static const String cannotOpenPayPal = 'Nije moguće otvoriti PayPal stranicu.';
-  static String cannotOpenPayPalWithReason(Object error) => 'Nije moguće otvoriti PayPal stranicu: $error';
-  static const String payPalOpensInBrowser = 'PayPal se otvara u pregledniku';
-  static const String reopenPayPal = 'Ponovo otvori PayPal';
 
   // --- Profile (4.2.11) ---
   static const String myProfile = 'Moj profil';
-  static const String fieldFullName = 'Ime i prezime';
   static const String fieldFirstName = 'Ime';
   static const String fieldLastName = 'Prezime';
   static const String fieldEmail = 'Email adresa';
@@ -223,7 +217,6 @@ abstract final class AppStrings {
   static const String logoutAction = 'Odjavi se';
   static const String profileUpdated = 'Podaci su sačuvani.';
   static const String passwordChanged = 'Lozinka je promijenjena.';
-  static const String changeProfilePhoto = 'Promijeni fotografiju';
 
   // --- Instructor home (4.3.1) ---
   static String instructorGreeting(String name) => 'Dobro jutro, $name';
@@ -269,6 +262,11 @@ abstract final class AppStrings {
   static const String lessonStartedMessage = 'Čas je započet.';
   static const String noLessonsForDate = 'Nemate časova za odabrani dan.';
   static const List<String> dayAbbreviations = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'];
+  static const List<String> monthNames = [
+    'Januar', 'Februar', 'Mart', 'April', 'Maj', 'Juni', 'Juli', 'August', 'Septembar', 'Oktobar', 'Novembar', 'Decembar',
+  ];
+  static String monthYear(int month, int year) => '${monthNames[month - 1]} $year';
+  static const String lessonFinishedLabel = 'Čas završen';
 
   // --- Lesson completion & grading (4.3.5) ---
   static const String completeLessonTitle = 'Završetak časa';
@@ -303,17 +301,8 @@ abstract final class AppStrings {
   static const String emptyMessage = 'Kada dodate prvi zapis, pojavit će se ovdje.';
   static String emptyForSearch(String query) => 'Nijedan zapis ne odgovara pretrazi „$query”.';
 
-  // --- Paging ---
+  // --- Lists ---
   static const String noResults = 'Nema rezultata';
-  static const String previousPage = 'Prethodna';
-  static const String nextPage = 'Sljedeća';
-  static String showingRange(int first, int last, int total) => 'Prikazano $first–$last od $total';
-  static String pageOf(int page, int pages) => 'Stranica $page / $pages';
-
-  // --- Dialogs ---
-  static const String confirmDeleteTitle = 'Potvrda brisanja';
-  static String confirmDeleteMessage(String label) =>
-      'Da li ste sigurni da želite obrisati „$label”? Ova radnja se ne može poništiti.';
 
   // --- Form controls ---
   static const String dropdownSelect = 'Odaberite…';
@@ -326,26 +315,20 @@ abstract final class AppStrings {
   static const String timeHint = 'HH:MM';
   static const String clearValue = 'Poništi vrijednost';
   static const String pickImage = 'Odaberi sliku';
-  static const String changeImage = 'Promijeni sliku';
-  static const String removeImage = 'Ukloni sliku';
-  static const String imageReadFailed = 'Odabrana slika se ne može pročitati.';
 
   // --- Validation (shown under the control; each states the expected format) ---
   static const String required = 'Ovo polje je obavezno.';
   static const String invalidEmail = 'Unesite e-mail u formatu ime@domena.com.';
   static const String invalidPhone = 'Broj telefona mora biti u formatu +387 6X XXX XXX.';
+  static const String phoneHint = '+387 6X XXX XXX';
   static const String passwordTooShort = 'Lozinka mora imati najmanje 8 znakova.';
   static const String passwordsDoNotMatch = 'Lozinka i potvrda lozinke se ne podudaraju.';
   static const String invalidNumber = 'Unesite broj, npr. 120.50.';
-  static const String invalidWholeNumber = 'Unesite cijeli broj, npr. 2021.';
   static const String selectRequired = 'Odaberite jednu od ponuđenih vrijednosti.';
   static const String dateRequired = 'Odaberite datum u formatu DD.MM.GGGG.';
-  static const String timeRequired = 'Odaberite vrijeme u formatu HH:MM.';
   static String maxLength(String label, int max) => '$label može imati najviše $max znakova.';
   static String numberAtLeast(num min) => 'Vrijednost ne može biti manja od ${_plain(min)}.';
   static String numberAtMost(num max) => 'Vrijednost ne može biti veća od ${_plain(max)}.';
-  static String dateNotBefore(String formatted) => 'Datum ne može biti prije $formatted';
-  static String dateNotAfter(String formatted) => 'Datum ne može biti poslije $formatted';
   static const String imageTypeInvalid = 'Dozvoljeni su samo fajlovi tipa JPG, PNG ili WEBP.';
   static String imageTooLarge(int megabytes) => 'Fajl je prevelik. Maksimalna dozvoljena veličina je $megabytes MB.';
 

@@ -17,7 +17,9 @@ RUN dotnet publish eAutoskola.API/eAutoskola.API.csproj -c Release -o /app --no-
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
-RUN mkdir -p /app/logs && chown -R app:app /app
+# /app/uploads is a named volume in docker-compose.yml: it must exist in the image and belong to the
+# app user so the volume is created writable.
+RUN mkdir -p /app/logs /app/uploads && chown -R app:app /app
 COPY --from=build /app .
 USER app
 ENTRYPOINT ["dotnet", "eAutoskola.API.dll"]

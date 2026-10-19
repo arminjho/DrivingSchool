@@ -14,7 +14,7 @@ void main() {
     return PagedResult(resultList: List.generate(count, (i) => first + i), count: total);
   }
 
-  PagedController<int> controller({bool accumulate = false, Future<PagedResult<int>> Function(PagedQuery)? fetch}) =>
+  PagedController<int> controller({Future<PagedResult<int>> Function(PagedQuery)? fetch}) =>
       PagedController<int>(
         fetch: fetch ??
             (query) async {
@@ -22,40 +22,26 @@ void main() {
               return pageOf(query);
             },
         pageSize: 10,
-        accumulate: accumulate,
         searchParam: 'name',
         debounce: const Duration(milliseconds: 20),
       );
 
   setUp(() => queries = []);
 
-  test('loads the first page and exposes paging numbers', () async {
+  test('loads the first page', () async {
     final paged = controller();
     addTearDown(paged.dispose);
 
     await paged.load();
 
     expect(paged.items.length, 10);
-    expect(paged.totalCount, 25);
-    expect(paged.totalPages, 3);
     expect(paged.page, 1);
     expect(paged.isLoading, isFalse);
     expect(paged.hasMore, isTrue);
   });
 
-  test('going to another page replaces the rows; the request carries that page', () async {
+  test('loadMore appends each page and stops when everything is loaded', () async {
     final paged = controller();
-    addTearDown(paged.dispose);
-    await paged.load();
-
-    await paged.goToPage(3);
-
-    expect(paged.items, [20, 21, 22, 23, 24]);
-    expect(queries.last.page, 3);
-  });
-
-  test('accumulate mode appends each page and stops when everything is loaded', () async {
-    final paged = controller(accumulate: true);
     addTearDown(paged.dispose);
     await paged.load();
 
@@ -72,7 +58,7 @@ void main() {
     final paged = controller();
     addTearDown(paged.dispose);
     await paged.load();
-    await paged.goToPage(2);
+    await paged.loadMore();
     queries.clear();
 
     paged
@@ -84,24 +70,6 @@ void main() {
     expect(queries.length, 1);
     expect(queries.single.page, 1);
     expect(queries.single.filters, {'name': 'Sar'});
-  });
-
-  test('sorting on the same column flips direction; a new column starts ascending', () async {
-    final paged = controller();
-    addTearDown(paged.dispose);
-    await paged.load();
-
-    paged.sortOn('Name');
-    await Future<void>.delayed(Duration.zero);
-    expect((queries.last.sortBy, queries.last.ascending), ('Name', true));
-
-    paged.sortOn('Name');
-    await Future<void>.delayed(Duration.zero);
-    expect(queries.last.ascending, isFalse);
-
-    paged.sortOn('Code');
-    await Future<void>.delayed(Duration.zero);
-    expect((queries.last.sortBy, queries.last.ascending), ('Code', true));
   });
 
   test('a failed load keeps the error and offers a retry through reload', () async {

@@ -135,7 +135,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                 AppCard(
                   child: Row(
                     children: [
-                      AppAvatar(name: lesson.studentFullName, size: 44),
+                      AppAvatar(name: lesson.studentFullName, size: 44, imagePath: lesson.studentProfileImagePath),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: Column(
@@ -158,7 +158,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                     children: [
                       _infoRow(context, icon: AppIcons.date, label: AppStrings.infoDateTime, value: AppFormat.dateTime(lesson.startsAtUtc)),
                       _infoRow(context, icon: AppIcons.place, label: AppStrings.infoZone, value: lesson.drivingZoneName),
-                      _infoRow(context, icon: AppIcons.vehicle, label: AppStrings.infoVehicle, value: lesson.vehicleRegistrationNumber ?? AppStrings.noVehicleAssignedYet),
+                      _infoRow(context, icon: AppIcons.vehicle, label: AppStrings.infoVehicle, value: lesson.vehicleLabel ?? AppStrings.noVehicleAssignedYet),
                       _infoRow(context, icon: AppIcons.lesson, label: AppStrings.infoLessonNumber, value: AppStrings.instructorLessonNumberLabel(lesson.lessonNumber)),
                     ],
                   ),

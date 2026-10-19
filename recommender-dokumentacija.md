@@ -114,9 +114,9 @@ Ako je oblast označena kao kritična (§5.1), dodaje se:
 " Ova oblast je označena kao kritična jer ste greške iz nje ponovili u više probnih testova."
 ```
 
-Primjer stvarnog izlaza (iz seed podataka — učenik `mobile/test` ima 3/5 netačnih na "Test 1 - Saobraćajni znakovi"):
+Primjer stvarnog izlaza (iz seed podataka — učenik `mobile/test`; na posljednjem pokušaju testa "Test 1 - Saobraćajni znakovi" imao je 3 netačna odgovora od 10, a greške u oblasti je ponovio u tri različita pokušaja):
 
-> *"Preporučujemo vam da ponovite lekciju 'Saobraćajni znakovi' jer ste na posljednjem probnom testu imali 60% netačnih odgovora iz ove specifične kategorije (Saobraćajni znakovi)."*
+> *"Preporučujemo vam da ponovite lekciju 'Saobraćajni znakovi' jer ste na posljednjem probnom testu imali 30% netačnih odgovora iz ove specifične kategorije (Saobraćajni znakovi). Ova oblast je označena kao kritična jer ste greške iz nje ponovili u više probnih testova."*
 
 ## 7. Upravljanje modelom
 
@@ -126,7 +126,7 @@ Nema treniranog modela niti perzistiranih težina — sve vektore i sličnosti s
 
 - **Endpoint:** `GET /api/recommendations?take={N}` — `[Authorize(Roles = Role.Student)]`, `StudentId` se uvijek uzima iz JWT tokena preko `ICurrentUserService`, nikad iz parametra rute/tijela (upute.md §5).
 - **Kontroler:** `RecommendationController` (`eAutoskola.API/Controllers/RecommendationController.cs`) — tanak, bez poslovne logike, direktno poziva `StudyRecommendationService`.
-- **Logovanje:** svaka stvarno prikazana preporuka upisuje se u `RecommendationLogs` (StudentId, StudyLessonId, Score, Explanation, CreatedAt) prije vraćanja odgovora — jedan `SaveChangesAsync` poziv za sve preporuke u odgovoru.
+- **Logovanje:** svaka stvarno prikazana preporuka upisuje se u `RecommendationLogs` (StudentId, StudyLessonId, Score, Explanation, CreatedAt) prije vraćanja odgovora — jedan `SaveChangesAsync` poziv za sve preporuke u odgovoru. Pri prvom pokretanju baze `RecommendationLogSeeder` pokreće isti servis za nekoliko učenika koji su rješavali testove, pa je tabela popunjena stvarnim izlazom recommendera, ne ručno upisanim vrijednostima.
 - **Klijentski ekran:** docs/prijava.md §4.2.8 ("Preporuke za učenje") — lista kartica sa naslovom lekcije i generisanim objašnjenjem.
 
 ## 9. Rubni slučajevi
@@ -134,7 +134,7 @@ Nema treniranog modela niti perzistiranih težina — sve vektore i sličnosti s
 | Slučaj | Ponašanje |
 |---|---|
 | Učenik nema nijedan predat pokušaj testa | `ColdStartMessage` se vraća umjesto liste: "Preporuke će biti dostupne nakon što riješite barem jedan probni test." |
-| Učenik ima pokušaje, ali svi odgovori su tačni | Prazan profil grešaka (`HasAnyData == false`) → isti cold-start odgovor kao gore |
+| Učenik ima pokušaje, ali su svi odgovori tačni | Težine svih oblasti su 0 (`HasAnyData == true`, ali bez grešaka), pa nijedna lekcija nema sličnost > 0 → prazna lista preporuka, bez cold-start poruke (isto kao sljedeći red); klijent prikazuje „Trenutno nemamo preporuka za vas“ |
 | Nijedna lekcija nema sličnost > 0 sa profilom učenika | Prazna lista preporuka (bez cold-start poruke, jer podaci o greškama postoje — samo nema odgovarajuće lekcije u katalogu) |
 | Sve lekcije imaju identičnu sličnost | Deterministički tie-break po `StudyLesson.Id` (§5.3), tako da je redoslijed stabilan između poziva |
 | Lekcija bez tagova koji se poklapaju sa drugim oblastima | Vektor ima samo primarnu dimenziju (težina 1.0) — i dalje validan za poređenje |
@@ -158,26 +158,34 @@ Implementacija prati `docs/prijava.md` §6 tačku po tačku: §6.1 → ovaj doku
 
 ## 12. Radni numerički primjer
 
-Učenik ima 1 predat pokušaj testa "Saobraćajni znakovi" (5 pitanja, sva iz oblasti `Saobraćajni znakovi`, Id = 1): 2 tačna, 3 netačna.
+Primjer je stvarni slučaj iz seed podataka: učenik `mobile/test` ima 5 predanih pokušaja (testovi 1-4, test 1 dva puta). Odgovori po oblastima (pitanja jednog testa mogu pripadati različitim oblastima):
+
+| Oblast | Odgovoreno | Netačno | ErrorRate | ErrorFrequency | Normalizirana frekvencija | Težina |
+|---|---|---|---|---|---|---|
+| Saobraćajni znakovi | 23 | 10 | 10/23 = 0.4348 | 3 (pokušaji sa greškom) | 3/3 = 1.0 | 0.6 × 0.4348 + 0.4 × 1.0 = **0.6609** |
+| Pravila vožnje | 19 | 6 | 6/19 = 0.3158 | 2 | 2/3 = 0.6667 | 0.6 × 0.3158 + 0.4 × 0.6667 = **0.4561** |
+| Situacije u saobraćaju | 8 | 1 | 1/8 = 0.125 | 1 | 1/3 = 0.3333 | 0.6 × 0.125 + 0.4 × 0.3333 = **0.2083** |
+
+`MaxErrorFrequency = 3`. Kritične su oblasti sa `ErrorFrequency ≥ 2`: Saobraćajni znakovi i Pravila vožnje.
+
+Korisnički vektor (dimenzije = Id oblasti): `{Znakovi: 0.6609, Pravila: 0.4561, Situacije: 0.2083}`, `‖A‖ = 0.8296`.
+
+Lekcija "Saobraćajni znakovi" (primarna oblast Znakovi; njeni tagovi ne navode druge oblasti) → vektor `{Znakovi: 1.0}`:
 
 ```
-ErrorRate(1)      = 3 / 5 = 0.6
-ErrorFrequency(1) = 1 (samo jedan pokušaj sadrži grešku u ovoj oblasti)
-MaxErrorFrequency = 1  →  normalizovano ErrorFrequency(1) = 1/1 = 1.0
-
-Weight(1) = 0.6 × 0.6 + 0.4 × 1.0 = 0.36 + 0.40 = 0.76
-IsCritical(1) = ErrorFrequency(1) < 2  →  false
+similarity = (0.6609 × 1.0) / (0.8296 × 1.0) = 0.7966
 ```
 
-Korisnički vektor: `{1: 0.76}`.
-
-Lekcija "Saobraćajni znakovi" (QuestionAreaId = 1, Tags = "saobracajni znakovi, zabrana, obaveza, opasnost") → vektor lekcije: `{1: 1.0}` (nema drugih oblasti spomenutih u tagovima koje bi dodale sekundarnu dimenziju).
+Lekcija "Prvenstvo prolaza na raskrsnicama" (primarna oblast Pravila vožnje; tagovi sadrže "saobraćajni znakovi" i "situacije u saobraćaju", pa vektor dobija sekundarne dimenzije sa težinom `TagAssociationWeight = 0.3`) → vektor `{Pravila: 1.0, Znakovi: 0.3, Situacije: 0.3}`, `‖B‖ = 1.0863`:
 
 ```
-similarity = (0.76 × 1.0) / (0.76 × 1.0) = 1.0
+dot        = 0.4561 × 1.0 + 0.6609 × 0.3 + 0.2083 × 0.3 = 0.7169
+similarity = 0.7169 / (0.8296 × 1.0863) = 0.7955
 ```
 
-Objašnjenje: *"Preporučujemo vam da ponovite lekciju 'Saobraćajni znakovi' jer ste na posljednjem probnom testu imali 60% netačnih odgovora iz ove specifične kategorije (Saobraćajni znakovi)."* (bez rečenice o kritičnoj oblasti, jer `IsCritical = false` sa samo jednim pokušajem).
+Bez tagova ova lekcija bi imala sličnost samo 0.5498, pa se vidi da polje `Tags` stvarno utiče na redoslijed. Vrijednosti 0.7966 i 0.7955 vraća i `GET /api/recommendations` za ovog učenika; iste brojke se upisuju u `RecommendationLogs`.
+
+Objašnjenje za prvu lekciju: *"Preporučujemo vam da ponovite lekciju 'Saobraćajni znakovi' jer ste na posljednjem probnom testu imali 30% netačnih odgovora iz ove specifične kategorije (Saobraćajni znakovi). Ova oblast je označena kao kritična jer ste greške iz nje ponovili u više probnih testova."* (30% = 3 netačna od 10 u zadnjem pokušaju koji sadrži pitanja iz te oblasti.)
 
 ## 13. Relevantne datoteke
 

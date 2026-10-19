@@ -26,7 +26,7 @@ public static partial class FieldValidationRules
         }
         else if (value.Length > maxLength)
         {
-            Add(errors, field, $"{label} ne smije imati više od {maxLength} znakova.");
+            Add(errors, field, string.Format(Messages.MaxLengthExceeded, label, maxLength));
         }
     }
 

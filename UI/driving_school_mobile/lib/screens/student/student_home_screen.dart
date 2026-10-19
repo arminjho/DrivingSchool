@@ -56,8 +56,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     });
     try {
       final results = await (
-        _lessonProvider.getPaged(const PagedQuery(page: 1, pageSize: 1, sortBy: 'StartsAtUtc', ascending: true, filters: {'tab': 'active'})),
-        _lessonProvider.getPaged(const PagedQuery(page: 1, pageSize: 1, filters: {'tab': 'completed'})),
+        _lessonProvider.getMy(const PagedQuery(page: 1, pageSize: 1, sortBy: 'StartsAtUtc', ascending: true, filters: {'tab': 'active'})),
+        _lessonProvider.getMy(const PagedQuery(page: 1, pageSize: 1, filters: {'tab': 'completed'})),
         _testProvider.getMy(),
       ).wait;
 
@@ -153,7 +153,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             children: [
               Icon(AppIcons.vehicle, size: 16, color: c.textMuted),
               const SizedBox(width: AppSpacing.xs),
-              Text('${lesson.vehicleRegistrationNumber ?? AppStrings.noVehicleAssignedYet} · ${lesson.drivingZoneName}'),
+              Text('${lesson.vehicleName ?? AppStrings.noVehicleAssignedYet} · ${lesson.drivingZoneName}'),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),

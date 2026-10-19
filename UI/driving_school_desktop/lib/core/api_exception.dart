@@ -14,7 +14,6 @@ class ApiException implements Exception {
   });
 
   bool get isUnauthorized => statusCode == 401;
-  bool get isTransportFailure => statusCode == 0;
 
   @override
   String toString() => message;

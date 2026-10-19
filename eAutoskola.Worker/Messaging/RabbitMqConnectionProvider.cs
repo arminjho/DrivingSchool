@@ -1,5 +1,4 @@
 using eAutoskola.Worker.Configuration;
-using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
 namespace eAutoskola.Worker.Messaging;

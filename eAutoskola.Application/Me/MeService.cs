@@ -45,8 +45,8 @@ public class MeService
     public async Task<UserDto> UpdateMeAsync(MeUpdateRequest request, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
-        FieldValidationRules.RequireText(errors, nameof(request.FirstName), request.FirstName, 100, "Ime");
-        FieldValidationRules.RequireText(errors, nameof(request.LastName), request.LastName, 100, "Prezime");
+        FieldValidationRules.RequireText(errors, nameof(request.FirstName), request.FirstName, 100, Messages.FirstNameLabel);
+        FieldValidationRules.RequireText(errors, nameof(request.LastName), request.LastName, 100, Messages.LastNameLabel);
         FieldValidationRules.RequireEmail(errors, nameof(request.Email), request.Email);
         FieldValidationRules.RequirePhone(errors, nameof(request.PhoneNumber), request.PhoneNumber);
 
@@ -56,7 +56,7 @@ public class MeService
         if (errors.Count == 0 && user.Email != request.Email
             && await _context.Users.AnyAsync(u => u.Email == request.Email, cancellationToken))
         {
-            FieldValidationRules.Add(errors, nameof(request.Email), "Korisnik sa ovom e-mail adresom već postoji.");
+            FieldValidationRules.Add(errors, nameof(request.Email), Messages.EmailAlreadyExists);
         }
 
         FieldValidationRules.ThrowIfAny(errors);
@@ -92,9 +92,8 @@ public class MeService
         }
 
         user.PasswordHash = PasswordHasher.Hash(request.NewPassword);
+        await _tokenBlocklistService.StageTokenInvalidationAsync(user.Id, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
-
-        await _tokenBlocklistService.InvalidateTokensValidFromAsync(user.Id, cancellationToken);
     }
 
     public async Task<UserDto> UploadProfileImageAsync(Stream content, string fileName, string contentType, CancellationToken cancellationToken)

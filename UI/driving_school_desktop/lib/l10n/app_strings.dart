@@ -25,7 +25,6 @@ abstract final class AppStrings {
   static const String logout = 'Odjava';
 
   // --- Auth ---
-  static const String loginTitle = 'Prijava';
   static const String loginSubtitle = 'Administratorski panel autoškole';
   static const String loginAction = 'Prijavi se';
   static const String usernameLabel = 'Korisničko ime ili e-mail';
@@ -36,7 +35,6 @@ abstract final class AppStrings {
   static const String loginFailed = 'Prijava nije uspjela. Provjerite korisničko ime i lozinku.';
 
   // --- Shell ---
-  static const String homeTitle = 'Dashboard';
   static const String homeSubtitle = 'Pregled aktivnosti — eAutoškola';
   static const String notificationsTitle = 'Obavijesti';
   static const String notificationsSubtitle = 'Sistemske obavijesti o vašem nalogu';
@@ -44,7 +42,6 @@ abstract final class AppStrings {
   static const String breadcrumbRoot = 'eAutoškola';
   static const String myProfile = 'Moj profil';
   static const String changePassword = 'Promijeni lozinku';
-  static String welcome(String name) => 'Dobrodošli, $name';
 
   // --- Sidebar ---
   static const String navDashboard = 'Dashboard';
@@ -77,7 +74,6 @@ abstract final class AppStrings {
   static const List<String> monthAbbreviations = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec'];
 
   // --- Users ---
-  static const String usersTitle = 'Korisnici';
   static const String usersSubtitle = 'Upravljanje korisničkim nalozima';
   static const String usersSearchHint = 'Pretraži korisnike…';
   static const String usersAllRoles = 'Sve uloge';
@@ -111,7 +107,6 @@ abstract final class AppStrings {
   static const String deactivate = 'Deaktiviraj';
 
   // --- Vehicle fleet ---
-  static const String vehicleFleetTitle = 'Vozni park';
   static const String vehicleFleetSubtitle = 'Pregled vozila i servisnih zapisa';
   static const String vehiclesTab = 'Vozila';
   static const String vehicleServicesTab = 'Servisi';
@@ -140,6 +135,7 @@ abstract final class AppStrings {
   static const String fieldMake = 'Marka';
   static const String fieldModel = 'Model';
   static const String fieldManufactureYear = 'Godina proizvodnje';
+  static const String fieldVehicleImage = 'Fotografija vozila (opciono)';
   static const String vehicleServiceFormNewTitle = 'Novi servis';
   static const String vehicleServiceFormEditTitle = 'Uredi servis';
   static const String fieldServiceDate = 'Datum servisa';
@@ -154,9 +150,11 @@ abstract final class AppStrings {
   static const String vehicleServiceDeleted = 'Servis je obrisan.';
   static const String noVehicleCategoryPrefix = 'Prvo dodajte kategoriju vozila u Referentni podaci.';
   static const String noVehiclesPrefix = 'Prvo dodajte vozilo u Vozni park.';
+  static const String noCountriesPrefix = 'Prvo dodajte državu u Referentni podaci.';
+  static const String noQuestionAreasPrefix = 'Prvo dodajte oblast pitanja u Referentni podaci.';
+  static const String noVehicleServiceTypesPrefix = 'Prvo dodajte vrstu servisa u Referentni podaci.';
 
   // --- Reports ---
-  static const String reportsTitle = 'Izvještaji';
   static const String reportsSubtitle = 'Generisanje i preuzimanje izvještaja';
   static const String lessonStatusReportTitle = 'Izvještaj o statusu časova';
   static const String lessonStatusReportSubtitle = 'Generiši izvještaj prema filteru';
@@ -167,8 +165,6 @@ abstract final class AppStrings {
   static const String fieldInstructor = 'Instruktor';
   static const String allInstructors = 'Svi instruktori';
   static const String downloadPdf = '⬇ Preuzmi PDF';
-  static const String printPdf = 'Štampaj';
-  static const String reportGenerating = 'Generisanje izvještaja…';
   static const String reportGenerateFailed = 'Izvještaj nije generisan.';
   static const String reportDateRangeInvalid = 'Datum "do" mora biti isti ili nakon datuma "od".';
   static const String reportCompleted = 'Završeno';
@@ -176,7 +172,6 @@ abstract final class AppStrings {
   static const String reportCancelledCount = 'Otkazano';
 
   // --- Reference data ---
-  static const String referenceDataTitle = 'Referentni podaci';
   static const String referenceDataSubtitle = 'Šifarnici i katalozi';
   static const String tabCountries = 'Države';
   static const String tabCities = 'Gradovi';
@@ -185,6 +180,7 @@ abstract final class AppStrings {
   static const String tabServiceTypes = 'Tipovi usluga';
   static const String tabDrivingZones = 'Zone vožnje';
   static const String tabQuestionAreas = 'Oblasti pitanja';
+  static const String tabVehicleServiceTypes = 'Vrste servisa';
   static const String fieldCode = 'Šifra';
   static const String fieldName = 'Naziv';
   static const String fieldDescription = 'Opis';
@@ -198,12 +194,12 @@ abstract final class AppStrings {
   static const String addServiceType = '+ Dodaj tip usluge';
   static const String addDrivingZone = '+ Dodaj zonu';
   static const String addQuestionArea = '+ Dodaj oblast';
+  static const String addVehicleServiceType = '+ Dodaj vrstu servisa';
   static String entryCreated(String label) => '„$label” je dodano.';
   static String entryUpdated(String label) => '„$label” je sačuvano.';
   static String entryDeleted(String label) => '„$label” je obrisano.';
 
   // --- Tests / questions (admin) ---
-  static const String testsTitle = 'Testovi';
   static const String testsSubtitle = 'Upravljanje probnim testovima i pitanjima';
   static const String testsAddNew = '+ Novi test';
   static const String columnTitle = 'Naziv';
@@ -225,7 +221,6 @@ abstract final class AppStrings {
   static const String fieldQuestionImage = 'Slika (opciono)';
   static const String answerOptionsTitle = 'Ponuđeni odgovori (odaberite točan)';
   static String answerOptionLabel(int index) => 'Odgovor ${String.fromCharCode(65 + index)}';
-  static const String answerOptionsMustHaveFour = 'Potrebne su tačno 4 ponuđene opcije.';
   static const String answerOptionsNeedOneCorrect = 'Odaberite tačno jedan točan odgovor.';
   static String testCreated(String title) => 'Test „$title” je dodan.';
   static String testUpdated(String title) => 'Test „$title” je sačuvan.';
@@ -235,10 +230,8 @@ abstract final class AppStrings {
   static const String questionDeleted = 'Pitanje je obrisano.';
 
   // --- Study lessons (admin) ---
-  static const String studyLessonsTitle = 'Lekcije';
   static const String studyLessonsSubtitle = 'Upravljanje teorijskim lekcijama i sekcijama';
   static const String studyLessonsAddNew = '+ Nova lekcija';
-  static const String columnChapter = 'Poglavlje';
   static const String columnReadingMinutes = 'Minuta čitanja';
   static const String columnSectionCount = 'Broj sekcija';
   static const String studyLessonFormNewTitle = 'Nova lekcija';
@@ -248,6 +241,7 @@ abstract final class AppStrings {
   static const String fieldValidForYear = 'Važi za godinu';
   static const String fieldReadingMinutes = 'Minuta čitanja';
   static const String fieldChapterLabel = 'Oznaka poglavlja';
+  static const String chapterLabelHint = 'npr. Poglavlje 3.1';
   static const String openSections = 'Sekcije';
   static const String sectionsTitle = 'Sekcije';
   static String sectionsSubtitle(String lessonTitle) => 'Sekcije lekcije „$lessonTitle”';
@@ -265,7 +259,6 @@ abstract final class AppStrings {
   static const String sectionDeleted = 'Sekcija je obrisana.';
 
   // --- Lessons overview (admin) ---
-  static const String lessonsOverviewTitle = 'Časovi';
   static const String lessonsOverviewSubtitle = 'Pregled svih časova vožnje';
   static const String lessonsAllStatuses = 'Svi statusi';
   static const String columnStudent = 'Učenik';
@@ -321,24 +314,21 @@ abstract final class AppStrings {
   static const String pickImage = 'Odaberi sliku';
   static const String changeImage = 'Promijeni sliku';
   static const String removeImage = 'Ukloni sliku';
-  static const String imageReadFailed = 'Odabrana slika se ne može pročitati.';
 
   // --- Validation (shown under the control; each states the expected format) ---
   static const String required = 'Ovo polje je obavezno.';
   static const String invalidEmail = 'Unesite e-mail u formatu ime@domena.com.';
   static const String invalidPhone = 'Broj telefona mora biti u formatu +387 6X XXX XXX.';
+  static const String phoneHint = '+387 6X XXX XXX';
   static const String passwordTooShort = 'Lozinka mora imati najmanje 8 znakova.';
   static const String passwordsDoNotMatch = 'Lozinka i potvrda lozinke se ne podudaraju.';
   static const String invalidNumber = 'Unesite broj, npr. 120.50.';
   static const String invalidWholeNumber = 'Unesite cijeli broj, npr. 2021.';
   static const String selectRequired = 'Odaberite jednu od ponuđenih vrijednosti.';
   static const String dateRequired = 'Odaberite datum u formatu DD.MM.GGGG.';
-  static const String timeRequired = 'Odaberite vrijeme u formatu HH:MM.';
   static String maxLength(String label, int max) => '$label može imati najviše $max znakova.';
   static String numberAtLeast(num min) => 'Vrijednost ne može biti manja od ${_plain(min)}.';
   static String numberAtMost(num max) => 'Vrijednost ne može biti veća od ${_plain(max)}.';
-  static String dateNotBefore(String formatted) => 'Datum ne može biti prije $formatted';
-  static String dateNotAfter(String formatted) => 'Datum ne može biti poslije $formatted';
   static const String imageTypeInvalid = 'Dozvoljeni su samo fajlovi tipa JPG, PNG ili WEBP.';
   static String imageTooLarge(int megabytes) => 'Fajl je prevelik. Maksimalna dozvoljena veličina je $megabytes MB.';
 

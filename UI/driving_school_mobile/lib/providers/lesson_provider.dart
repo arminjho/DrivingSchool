@@ -3,7 +3,9 @@ import 'dart:convert';
 import '../core/api_http.dart';
 import '../core/auth_session.dart';
 import '../core/base_provider.dart';
+import '../core/json_helpers.dart';
 import '../models/lesson.dart';
+import '../models/paged_result.dart';
 
 /// Everything a Student does with their own lessons: browse available slots, book, reschedule
 /// a still-pending request, cancel, and list "my" lessons by tab (Aktivni/Završeni/Otkazani).
@@ -20,7 +22,15 @@ class LessonProvider extends BaseProvider<Lesson> {
       headers: authHeaders(),
     );
     final decoded = decode(response) as List<dynamic>;
-    return decoded.map((value) => DateTime.parse(value as String).toUtc()).toList();
+    return decoded.map((value) => parseUtcDateTime(value as String)).toList();
+  }
+
+  /// `GET /api/lessons/my` - the signed-in student's own lessons, bucketed by the `tab` filter
+  /// (`active` / `completed` / `cancelled`). The plain `GET /api/lessons` that [getPaged] calls is
+  /// the Admin-only list and answers a student with 403, so it must not be used for this.
+  Future<PagedResult<Lesson>> getMy([PagedQuery query = const PagedQuery()]) async {
+    final response = await apiGet(buildUri('api/lessons/my', query.toQuery()), headers: authHeaders());
+    return PagedResult<Lesson>.fromJson(decode(response) as Map<String, dynamic>, Lesson.fromJson);
   }
 
   Future<Lesson> getMyLessonById(int id) => getById(id);

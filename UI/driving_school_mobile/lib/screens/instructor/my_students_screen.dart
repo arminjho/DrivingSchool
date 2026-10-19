@@ -5,6 +5,7 @@ import '../../core/auth_session.dart';
 import '../../core/design_tokens.dart';
 import '../../core/paged_controller.dart';
 import '../../l10n/app_strings.dart';
+import '../../layouts/shell_scope.dart';
 import '../../models/student_summary.dart';
 import '../../providers/instructor_api.dart';
 import '../../widgets/ui/app_badge.dart';
@@ -27,7 +28,7 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
   void initState() {
     super.initState();
     final api = InstructorApi(context.read<AuthSession>());
-    _controller = PagedController<StudentSummary>(fetch: api.getMyStudents, accumulate: true);
+    _controller = PagedController<StudentSummary>(fetch: api.getMyStudents);
     _controller.load();
   }
 
@@ -40,13 +41,13 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.myStudentsTitle)),
+      appBar: ShellScope.isInside(context) ? null : AppBar(title: const Text(AppStrings.myStudentsTitle)),
       body: PagedListView<StudentSummary>(
         controller: _controller,
         emptyIcon: Icons.groups_outlined,
         emptyMessage: AppStrings.noStudents,
         itemBuilder: (context, student) => AppListCard(
-          leading: AppAvatar(name: student.fullName),
+          leading: AppAvatar(name: student.fullName, imagePath: student.profileImagePath),
           title: student.fullName,
           subtitle: '${student.vehicleCategoryName} · ${AppStrings.totalLessonsLabel(student.totalLessons)}',
           trailing: Text(student.phoneNumber, style: context.text.bodySmall?.copyWith(color: context.colors.textMuted)),

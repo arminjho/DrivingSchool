@@ -32,8 +32,6 @@ class AuthSession extends ChangeNotifier {
 
   String get fullName => [firstName, lastName].where((part) => part.isNotEmpty).join(' ');
 
-  bool hasRole(String role) => _claims?.role == role;
-
   String get roleLabel => switch (_claims?.role) {
         Roles.admin => AppStrings.roleAdmin,
         Roles.instructor => AppStrings.roleInstructor,

@@ -14,6 +14,7 @@ import '../../providers/register_lookups_api.dart';
 import '../../widgets/ui/api_dropdown_field.dart';
 import '../../widgets/ui/app_action_button.dart';
 import '../../widgets/ui/app_card.dart';
+import '../../widgets/ui/app_messages.dart';
 import '../../widgets/ui/app_states.dart';
 import '../../widgets/ui/app_text_field.dart';
 
@@ -64,7 +65,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         cityId: form.value['cityId'] as int?,
         vehicleCategoryId: form.value['vehicleCategoryId'] as int,
       );
-      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+      if (!mounted) return;
+      showSuccessMessage(context, AppStrings.registerSuccess(form.value['firstName'] as String));
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } on Object catch (error) {
       if (!mounted) return;
       setState(() => _banner = applyApiErrors(_formKey, error));
@@ -112,7 +115,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   name: 'phoneNumber',
                   label: AppStrings.fieldPhone,
                   icon: Icons.phone_outlined,
-                  hint: '+387 6X XXX XXX',
+                  hint: AppStrings.phoneHint,
                   validator: AppValidators.phone(),
                 ),
                 const SizedBox(height: AppSpacing.md),

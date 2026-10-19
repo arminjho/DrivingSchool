@@ -45,13 +45,13 @@ public class UserService : BaseCRUDService<UserDto, UserSearchObject, UserInsert
         var errors = new Dictionary<string, string[]>();
         FieldValidationRules.RequireEmail(errors, nameof(request.Email), request.Email);
         FieldValidationRules.RequirePassword(errors, nameof(request.Password), request.Password);
-        FieldValidationRules.RequireText(errors, nameof(request.FirstName), request.FirstName, 100, "Ime");
-        FieldValidationRules.RequireText(errors, nameof(request.LastName), request.LastName, 100, "Prezime");
+        FieldValidationRules.RequireText(errors, nameof(request.FirstName), request.FirstName, 100, Messages.FirstNameLabel);
+        FieldValidationRules.RequireText(errors, nameof(request.LastName), request.LastName, 100, Messages.LastNameLabel);
         FieldValidationRules.RequirePhone(errors, nameof(request.PhoneNumber), request.PhoneNumber);
 
         if (!Role.All.Contains(request.Role))
         {
-            FieldValidationRules.Add(errors, nameof(request.Role), "Odabrana uloga nije validna.");
+            FieldValidationRules.Add(errors, nameof(request.Role), Messages.RoleInvalid);
         }
         if (request.Role is Role.Student or Role.Instructor && request.VehicleCategoryId is null)
         {
@@ -59,7 +59,7 @@ public class UserService : BaseCRUDService<UserDto, UserSearchObject, UserInsert
         }
         if (errors.Count == 0 && await Context.Users.AnyAsync(u => u.Email == request.Email, cancellationToken))
         {
-            FieldValidationRules.Add(errors, nameof(request.Email), "Korisnik sa ovom e-mail adresom već postoji.");
+            FieldValidationRules.Add(errors, nameof(request.Email), Messages.EmailAlreadyExists);
         }
 
         FieldValidationRules.ThrowIfAny(errors);
@@ -82,8 +82,8 @@ public class UserService : BaseCRUDService<UserDto, UserSearchObject, UserInsert
     protected override async Task BeforeUpdateAsync(User entity, UserUpdateRequest request, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
-        FieldValidationRules.RequireText(errors, nameof(request.FirstName), request.FirstName, 100, "Ime");
-        FieldValidationRules.RequireText(errors, nameof(request.LastName), request.LastName, 100, "Prezime");
+        FieldValidationRules.RequireText(errors, nameof(request.FirstName), request.FirstName, 100, Messages.FirstNameLabel);
+        FieldValidationRules.RequireText(errors, nameof(request.LastName), request.LastName, 100, Messages.LastNameLabel);
         FieldValidationRules.RequirePhone(errors, nameof(request.PhoneNumber), request.PhoneNumber);
 
         if (!string.IsNullOrEmpty(request.NewPassword) || !string.IsNullOrEmpty(request.ConfirmNewPassword))
@@ -100,7 +100,7 @@ public class UserService : BaseCRUDService<UserDto, UserSearchObject, UserInsert
         if (!string.IsNullOrEmpty(request.NewPassword))
         {
             entity.PasswordHash = PasswordHasher.Hash(request.NewPassword);
-            await _tokenBlocklistService.InvalidateTokensValidFromAsync(entity.Id, cancellationToken);
+            await _tokenBlocklistService.StageTokenInvalidationAsync(entity.Id, cancellationToken);
         }
     }
 
@@ -109,7 +109,7 @@ public class UserService : BaseCRUDService<UserDto, UserSearchObject, UserInsert
         var hasLessonHistory = await Context.Lessons.AnyAsync(l => l.StudentId == entity.Id || l.InstructorId == entity.Id, cancellationToken);
         if (hasLessonHistory)
         {
-            throw new BusinessException("Korisnik se ne može obrisati jer ima evidentirane časove u sistemu.");
+            throw new BusinessException(Messages.UserHasLessons);
         }
     }
 
@@ -121,7 +121,7 @@ public class UserService : BaseCRUDService<UserDto, UserSearchObject, UserInsert
         user.IsActive = isActive;
         if (!isActive)
         {
-            await _tokenBlocklistService.InvalidateTokensValidFromAsync(id, cancellationToken);
+            await _tokenBlocklistService.StageTokenInvalidationAsync(id, cancellationToken);
         }
 
         await Context.SaveChangesAsync(cancellationToken);

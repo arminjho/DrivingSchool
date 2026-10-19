@@ -138,10 +138,8 @@ abstract class BaseProvider<T> {
     return PagedResult<T>.fromJson(decode(response) as Map<String, dynamic>, fromJson);
   }
 
-  Future<T> getById(int id) async {
-    final response = await send(() => _client.get(buildUri('api/$_endpoint/$id'), headers: authHeaders()));
-    return fromJson(decode(response) as Map<String, dynamic>);
-  }
+  /// How many records the resource has - a one-row page is enough to read the total.
+  Future<int> totalCount() async => (await getPaged(const PagedQuery(pageSize: 1))).count;
 
   Future<T> insert(Map<String, dynamic> request) async {
     final response = await send(

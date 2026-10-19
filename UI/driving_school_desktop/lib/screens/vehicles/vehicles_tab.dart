@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:provider/provider.dart';
 
@@ -6,11 +7,13 @@ import '../../core/auth_session.dart';
 import '../../core/base_provider.dart';
 import '../../core/design_tokens.dart';
 import '../../core/form_errors.dart';
+import '../../core/image_validation.dart';
 import '../../core/paged_controller.dart';
 import '../../core/validators.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/vehicle.dart';
 import '../../models/vehicle_category.dart';
+import '../../providers/files_api.dart';
 import '../../providers/vehicle_category_provider.dart';
 import '../../providers/vehicle_provider.dart';
 import '../../widgets/ui/api_dropdown_field.dart';
@@ -21,6 +24,9 @@ import '../../widgets/ui/app_dialog.dart';
 import '../../widgets/ui/app_messages.dart';
 import '../../widgets/ui/app_states.dart';
 import '../../widgets/ui/app_text_field.dart';
+import '../../widgets/ui/app_thumbnail.dart';
+import '../../widgets/ui/form_prerequisites.dart';
+import '../../widgets/ui/image_picker_field.dart';
 import '../../widgets/ui/paged_table.dart';
 
 class VehiclesTab extends StatefulWidget {
@@ -33,6 +39,7 @@ class VehiclesTab extends StatefulWidget {
 class _VehiclesTabState extends State<VehiclesTab> {
   late final VehicleProvider _provider;
   late final VehicleCategoryProvider _categoryProvider;
+  late final FilesApi _filesApi;
   late final PagedController<Vehicle> _controller;
 
   int? _categoryFilter;
@@ -43,6 +50,7 @@ class _VehiclesTabState extends State<VehiclesTab> {
     final session = context.read<AuthSession>();
     _provider = VehicleProvider(session);
     _categoryProvider = VehicleCategoryProvider(session);
+    _filesApi = FilesApi(session);
     _controller = PagedController<Vehicle>(fetch: _provider.getPaged, searchParam: 'registrationNumber');
     _controller.load();
   }
@@ -58,7 +66,17 @@ class _VehiclesTabState extends State<VehiclesTab> {
     _controller.setFilter('vehicleCategoryId', categoryId);
   }
 
+  Future<PickedImage?> _pickImage() async {
+    final files = await FilePicker.pickFiles(type: FileType.image);
+    if (files.isEmpty) return null;
+    final file = files.first;
+    return PickedImage(name: file.name, bytes: await file.readAsBytes());
+  }
+
   Future<void> _openForm({Vehicle? initial}) async {
+    if (initial == null && !await requireRecords(context, count: _categoryProvider.totalCount, missingMessage: AppStrings.noVehicleCategoryPrefix)) return;
+    if (!mounted) return;
+
     final formKey = GlobalKey<FormBuilderState>();
     var isSubmitting = false;
     String? banner;
@@ -82,14 +100,19 @@ class _VehiclesTabState extends State<VehiclesTab> {
                         isSubmitting = true;
                         banner = null;
                       });
-                      final request = {
-                        'registrationNumber': (form.value['registrationNumber'] as String).toUpperCase(),
-                        'make': form.value['make'],
-                        'model': form.value['model'],
-                        'vehicleCategoryId': form.value['vehicleCategoryId'],
-                        'manufactureYear': int.parse(form.value['manufactureYear'] as String),
-                      };
                       try {
+                        var imagePath = initial?.imagePath;
+                        final picked = form.value['image'] as PickedImage?;
+                        if (picked != null) imagePath = await _filesApi.upload(picked);
+
+                        final request = {
+                          'registrationNumber': (form.value['registrationNumber'] as String).toUpperCase(),
+                          'make': form.value['make'],
+                          'model': form.value['model'],
+                          'vehicleCategoryId': form.value['vehicleCategoryId'],
+                          'manufactureYear': int.parse(form.value['manufactureYear'] as String),
+                          'imagePath': imagePath,
+                        };
                         if (initial == null) {
                           await _provider.insert(request);
                         } else {
@@ -156,6 +179,8 @@ class _VehiclesTabState extends State<VehiclesTab> {
                   keyboardType: TextInputType.number,
                   validator: AppValidators.wholeNumber(min: 1980, max: DateTime.now().year + 1),
                 ),
+                const SizedBox(height: AppSpacing.md),
+                AppImagePickerField(name: 'image', label: AppStrings.fieldVehicleImage, pick: _pickImage),
               ],
             ),
           ),
@@ -197,7 +222,18 @@ class _VehiclesTabState extends State<VehiclesTab> {
         ),
       ],
       columns: [
-        AppColumn<Vehicle>(label: AppStrings.columnRegistration, width: 140, sortKey: 'RegistrationNumber', cell: (context, row) => Text(row.registrationNumber)),
+        AppColumn<Vehicle>(
+          label: AppStrings.columnRegistration,
+          width: 200,
+          sortKey: 'RegistrationNumber',
+          cell: (context, row) => Row(
+            children: [
+              AppThumbnail(imagePath: row.imagePath, fallbackIcon: AppIcons.vehicle),
+              const SizedBox(width: AppSpacing.sm),
+              Flexible(child: Text(row.registrationNumber, overflow: TextOverflow.ellipsis)),
+            ],
+          ),
+        ),
         AppColumn<Vehicle>(label: AppStrings.columnMakeModel, flex: 2, cell: (context, row) => Text('${row.make} ${row.model}')),
         AppColumn<Vehicle>(
           label: AppStrings.columnCategory,

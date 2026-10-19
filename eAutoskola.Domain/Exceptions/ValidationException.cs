@@ -1,3 +1,5 @@
+using eAutoskola.Domain.Resources;
+
 namespace eAutoskola.Domain.Exceptions;
 
 /// <summary>
@@ -9,7 +11,7 @@ public class ValidationException : EAutoskolaException
     public IDictionary<string, string[]> Errors { get; }
 
     public ValidationException(IDictionary<string, string[]> errors)
-        : base("Dati podaci nisu validni.")
+        : base(Messages.ValidationFailed)
     {
         Errors = errors;
     }

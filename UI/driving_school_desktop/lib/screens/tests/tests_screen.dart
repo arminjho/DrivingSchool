@@ -19,6 +19,7 @@ import '../../widgets/ui/app_dialog.dart';
 import '../../widgets/ui/app_messages.dart';
 import '../../widgets/ui/app_states.dart';
 import '../../widgets/ui/app_text_field.dart';
+import '../../widgets/ui/form_prerequisites.dart';
 import '../../widgets/ui/paged_table.dart';
 import 'questions_screen.dart';
 
@@ -53,6 +54,9 @@ class _TestsScreenState extends State<TestsScreen> {
   }
 
   Future<void> _openForm({Test? initial}) async {
+    if (initial == null && !await requireRecords(context, count: _areaProvider.totalCount, missingMessage: AppStrings.noQuestionAreasPrefix)) return;
+    if (!mounted) return;
+
     final formKey = GlobalKey<FormBuilderState>();
     var isSubmitting = false;
     String? banner;
@@ -155,8 +159,6 @@ class _TestsScreenState extends State<TestsScreen> {
   Widget build(BuildContext context) {
     return PagedTable<Test>(
       controller: _controller,
-      title: AppStrings.testsTitle,
-      subtitle: AppStrings.testsSubtitle,
       addLabel: AppStrings.testsAddNew,
       onAdd: () => _openForm(),
       onEdit: (test) => _openForm(initial: test),

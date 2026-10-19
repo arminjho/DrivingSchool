@@ -86,7 +86,7 @@ public class PaymentService
         PayPalOrderResult order;
         try
         {
-            order = await _payPal.CreateOrderAsync(amountEur, $"eAutoškola - {charge.Description}", cancellationToken);
+            order = await _payPal.CreateOrderAsync(amountEur, string.Format(Messages.PayPalOrderDescription, charge.Description), cancellationToken);
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
@@ -171,6 +171,15 @@ public class PaymentService
         payment.CompletedAt = DateTime.UtcNow;
         installment.Status = InstallmentStatus.Paid;
 
+        // The payment, the paid installment and the "Uplata primljena" notification are stored
+        // by one SaveChangesAsync, so they can never disagree.
+        var student = await _context.Users.AsNoTracking().FirstAsync(u => u.Id == charge.StudentId, cancellationToken);
+        _notificationService.Stage(charge.StudentId, Messages.NotificationPaymentReceivedTitle,
+            string.Format(Messages.NotificationPaymentReceivedBody, payment.Amount), NotificationType.PaymentReceived);
+        await _notificationService.StageForAdminsAsync(Messages.NotificationPaymentReceivedTitle,
+            string.Format(Messages.NotificationAdminPaymentReceivedBody, $"{student.FirstName} {student.LastName}", payment.Amount),
+            NotificationType.PaymentReceived, cancellationToken);
+
         try
         {
             await _context.SaveChangesAsync(cancellationToken);
@@ -178,7 +187,9 @@ public class PaymentService
         catch (DbUpdateConcurrencyException)
         {
             // Lost the race against a parallel capture of the same order: it already applied
-            // the first-capture side effects, so this call must not repeat them.
+            // the first-capture side effects (including the notification), so this call must
+            // not repeat them.
+            _notificationService.DiscardStaged();
             await _context.Entry(payment).ReloadAsync(cancellationToken);
             if (payment.Status == PaymentStatus.Completed)
             {
@@ -187,31 +198,17 @@ public class PaymentService
             throw;
         }
 
-        await SendPaymentReceivedAsync(charge.StudentId, payment, cancellationToken);
-        return ToCaptureResult(payment, alreadyProcessed: false);
-    }
+        // The money has moved and is recorded, so a push or e-mail problem must never turn a
+        // successful capture into an error response (both calls swallow and log their errors).
+        await _notificationService.PushStagedAsync(cancellationToken);
+        await _messagePublisher.PublishAsync(new PaymentReceivedMessage
+        {
+            ToEmail = student.Email,
+            ToName = $"{student.FirstName} {student.LastName}",
+            Amount = payment.Amount,
+        }, cancellationToken);
 
-    // The money has already moved at this point, so a notification/e-mail problem must never
-    // turn a successful capture into an error response.
-    private async Task SendPaymentReceivedAsync(int studentId, Payment payment, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var student = await _context.Users.AsNoTracking().FirstAsync(u => u.Id == studentId, cancellationToken);
-            await _notificationService.NotifyAsync(studentId, "Uplata primljena",
-                $"Vaša uplata u iznosu od {payment.Amount:F2} KM je uspješno evidentirana.",
-                NotificationType.PaymentReceived, cancellationToken);
-            await _messagePublisher.PublishAsync(new PaymentReceivedMessage
-            {
-                ToEmail = student.Email,
-                ToName = $"{student.FirstName} {student.LastName}",
-                Amount = payment.Amount,
-            }, cancellationToken);
-        }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogError(ex, "Payment {PaymentId} was captured but its notification/e-mail could not be sent", payment.Id);
-        }
+        return ToCaptureResult(payment, alreadyProcessed: false);
     }
 
     private static CreateOrderResultDto ToOrderResult(Payment payment) => new()

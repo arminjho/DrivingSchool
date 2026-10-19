@@ -85,7 +85,7 @@ void main() {
           },
         }, 400));
 
-    final failure = await provider.insert({}).then<ApiException?>((_) => null, onError: (Object e) => e as ApiException);
+    final failure = await provider.getById(1).then<ApiException?>((_) => null, onError: (Object e) => e as ApiException);
 
     expect(failure?.fieldErrors['email'], ['Unesite e-mail u formatu ime@domena.com.']);
     expect(failure?.fieldErrors['startsAtUtc'], ['Termin mora biti u budućnosti.']);
@@ -97,7 +97,7 @@ void main() {
   test('a business rule has no field errors and shows the backend message as is', () async {
     installClient((request) async => jsonResponse({'message': 'Termin je zauzet.', 'errors': null}, 409));
 
-    final failure = await provider.insert({}).then<ApiException?>((_) => null, onError: (Object e) => e as ApiException);
+    final failure = await provider.getById(1).then<ApiException?>((_) => null, onError: (Object e) => e as ApiException);
 
     expect(failure?.statusCode, 409);
     expect(failure?.message, 'Termin je zauzet.');
@@ -118,7 +118,7 @@ void main() {
 
     final failure = await provider.getById(1).then<ApiException?>((_) => null, onError: (Object e) => e as ApiException);
 
-    expect(failure?.isTransportFailure, isTrue);
+    expect(failure?.statusCode, 0);
   });
 
   test('a request that hangs is cut off by the timeout instead of spinning forever', () async {
@@ -129,24 +129,7 @@ void main() {
       timeout: const Duration(milliseconds: 50),
     ).then<ApiException?>((_) => null, onError: (Object e) => e as ApiException);
 
-    expect(failure?.isTransportFailure, isTrue);
+    expect(failure?.statusCode, 0);
   });
 
-  test('insert and update send JSON, delete accepts an empty 204', () async {
-    final seen = <String>[];
-    installClient((request) async {
-      seen.add('${request.method} ${request.url.path} ${request.body}');
-      return request.method == 'DELETE' ? http.Response('', 204) : jsonResponse(cityJson(3), request.method == 'POST' ? 201 : 200);
-    });
-
-    await provider.insert({'name': 'Mostar'});
-    await provider.update(3, {'name': 'Mostar'});
-    await provider.delete(3);
-
-    expect(seen, [
-      'POST /api/cities {"name":"Mostar"}',
-      'PUT /api/cities/3 {"name":"Mostar"}',
-      'DELETE /api/cities/3 ',
-    ]);
-  });
 }

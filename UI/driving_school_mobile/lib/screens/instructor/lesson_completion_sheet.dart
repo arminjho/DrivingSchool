@@ -85,14 +85,14 @@ class _LessonCompletionSheetState extends State<LessonCompletionSheet> {
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
-                AppAvatar(name: lesson.studentFullName, size: 40),
+                AppAvatar(name: lesson.studentFullName, size: 40, imagePath: lesson.studentProfileImagePath),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(lesson.studentFullName, style: context.text.titleSmall),
-                      Text('${AppFormat.time(lesson.startsAtUtc)} · ${lesson.drivingZoneName}', style: context.text.bodySmall?.copyWith(color: c.textMuted)),
+                      Text('${AppFormat.dateTime(lesson.startsAtUtc)} · ${lesson.drivingZoneName}', style: context.text.bodySmall?.copyWith(color: c.textMuted)),
                     ],
                   ),
                 ),

@@ -43,7 +43,6 @@ class _LessonRequestsScreenState extends State<LessonRequestsScreen> {
     _lessonProvider = LessonProvider(session);
     _controller = PagedController<Lesson>(
       fetch: (query) => _instructorApi.getLessonRequests(query),
-      accumulate: true,
       filters: {'status': _status},
     );
     _controller.load();

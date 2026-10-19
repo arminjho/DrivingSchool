@@ -33,6 +33,7 @@ public class PayPalClientTests
     {
         Environment.SetEnvironmentVariable("PAYPAL_CLIENT_ID", "test-client");
         Environment.SetEnvironmentVariable("PAYPAL_CLIENT_SECRET", "test-secret");
+        Environment.SetEnvironmentVariable("PAYPAL_BASE_URL", "https://paypal.test");
         Environment.SetEnvironmentVariable("PAYPAL_RETURN_URL", "https://app.test/return");
         Environment.SetEnvironmentVariable("PAYPAL_CANCEL_URL", "https://app.test/cancel");
 

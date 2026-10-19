@@ -2,6 +2,7 @@ using eAutoskola.Domain.Entities;
 using eAutoskola.Domain.Enums;
 using eAutoskola.Domain.Payments;
 using eAutoskola.Domain.Security;
+using eAutoskola.Infrastructure.Database.Seed;
 using eAutoskola.Infrastructure.Payments;
 using eAutoskola.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
@@ -9,13 +10,21 @@ using Microsoft.EntityFrameworkCore;
 namespace eAutoskola.Infrastructure.Database;
 
 /// <summary>
-/// Idempotent runtime seeder (not EF HasData, so PasswordHasher - the same one AuthController
-/// will use - can be called directly; this is how seed and runtime hashes stay in the same
-/// format, per upute.md's explicit warning against mixing them). Values mirror
-/// docs/prijava.md's mockups where possible so the eventual UI matches the seeded data.
+/// Idempotent runtime seeder (not EF HasData, so PasswordHasher - the same one AuthService and
+/// UserService use - is called directly; this is how seed and runtime password hashes stay in
+/// one format, per upute.md's warning against mixing them). Creates a database that can actually
+/// be tested: 3 countries / 12 cities, 5 licence categories, 2 admins, 6 instructors,
+/// 24 students, 16 vehicles with maintenance history, ~200 lessons in every status spread over the
+/// year, package charges with installments and paid history, 6 theory tests with 60 questions,
+/// ~40 test attempts, 12 study lessons and the notifications of all that. Profile, vehicle and
+/// question images are included. Values follow docs/prijava.md's mockups where they show rows.
+/// Everything is derived from the seeding day with simple arithmetic - no randomness - so two
+/// fresh databases look alike. The steps live in the Seed folder.
 /// </summary>
 public static class DbSeeder
 {
+    private const string DemoPassword = "test";
+
     public static async Task SeedAsync(EAutoskolaDbContext context, CancellationToken cancellationToken = default)
     {
         if (await context.Countries.AnyAsync(cancellationToken))
@@ -23,35 +32,43 @@ public static class DbSeeder
             return; // already seeded
         }
 
-        // --- Reference data ---
-        var countries = new[]
+        var now = DateTime.UtcNow;
+
+        // The seed is many saves (each step needs the ids the previous one generated), so on a real
+        // database they run in ONE explicit transaction (upute.md §3.4): a failure part-way leaves
+        // nothing behind, and the next start seeds from scratch instead of finding a half-filled
+        // database that the "already seeded" check above would accept.
+        await using var transaction = context.Database.IsRelational() ? await context.Database.BeginTransactionAsync(cancellationToken) : null;
+
+        var reference = await SeedReferenceDataAsync(context, cancellationToken);
+        var people = await SeedPeopleAsync(context, reference, now, cancellationToken);
+        var fleet = await SeedFleetAsync(context, reference, now, cancellationToken);
+
+        var lessons = await SeedLessonsStep.RunAsync(context, reference, people, fleet, now, cancellationToken);
+        var payments = await SeedFinanceStep.RunAsync(context, reference, people, lessons, now, cancellationToken);
+        await SeedTheoryStep.RunAsync(context, reference, people, now, cancellationToken);
+        await SeedNotificationsStep.RunAsync(context, reference, people, lessons, payments, now, cancellationToken);
+
+        if (transaction is not null)
         {
-            new Country { Code = "BA", Name = "Bosna i Hercegovina" },
-            new Country { Code = "HR", Name = "Hrvatska" },
-            new Country { Code = "RS", Name = "Srbija" },
-        };
+            await transaction.CommitAsync(cancellationToken);
+        }
+    }
+
+    private static async Task<SeedReference> SeedReferenceDataAsync(EAutoskolaDbContext context, CancellationToken cancellationToken)
+    {
+        var countries = SeedFleetAndPeopleData.Countries.Select(c => new Country { Code = c.Code, Name = c.Name }).ToArray();
         context.Countries.AddRange(countries);
         await context.SaveChangesAsync(cancellationToken);
 
-        var ba = countries[0];
-        var cities = new[]
-        {
-            new City { Name = "Sarajevo", PostalCode = "71000", CountryId = ba.Id },
-            new City { Name = "Mostar", PostalCode = "88000", CountryId = ba.Id },
-            new City { Name = "Banja Luka", PostalCode = "78000", CountryId = ba.Id },
-            new City { Name = "Tuzla", PostalCode = "75000", CountryId = ba.Id },
-            new City { Name = "Zenica", PostalCode = "72000", CountryId = ba.Id },
-            new City { Name = "Bijeljina", PostalCode = "76300", CountryId = ba.Id },
-        };
+        var cities = SeedFleetAndPeopleData.Cities
+            .Select(c => new City { Name = c.Name, PostalCode = c.PostalCode, CountryId = countries.Single(country => country.Code == c.CountryCode).Id })
+            .ToArray();
         context.Cities.AddRange(cities);
 
-        var categories = new[]
-        {
-            new VehicleCategory { Code = "A", Name = "Motocikli", Description = "Vozila kategorije A - motocikli svih vrsta" },
-            new VehicleCategory { Code = "B", Name = "Osobna vozila", Description = "Osobni automobili do 3.5t i 8 mjesta" },
-            new VehicleCategory { Code = "C", Name = "Teretna vozila", Description = "Teretna vozila iznad 3.5t" },
-            new VehicleCategory { Code = "D", Name = "Autobusi", Description = "Autobusi za prijevoz više od 8 putnika" },
-        };
+        var categories = SeedFleetAndPeopleData.VehicleCategories
+            .Select(c => new VehicleCategory { Code = c.Code, Name = c.Name, Description = c.Description })
+            .ToArray();
         context.VehicleCategories.AddRange(categories);
 
         var requestStatuses = new[]
@@ -72,431 +89,118 @@ public static class DbSeeder
         };
         context.ServiceTypes.AddRange(serviceTypes);
 
-        var vehicleServiceTypes = new[]
-        {
-            new VehicleServiceType { Name = "Redovni servis" },
-            new VehicleServiceType { Name = "Zamjena ulja" },
-            new VehicleServiceType { Name = "Tehnički pregled" },
-        };
+        var vehicleServiceTypes = SeedFleetAndPeopleData.VehicleServiceTypes.Select(name => new VehicleServiceType { Name = name }).ToArray();
         context.VehicleServiceTypes.AddRange(vehicleServiceTypes);
 
-        var zones = new[]
-        {
-            new DrivingZone { Name = "Centar" },
-            new DrivingZone { Name = "Stari Grad" },
-            new DrivingZone { Name = "Novi Grad" },
-        };
+        var zones = SeedFleetAndPeopleData.DrivingZones.Select(name => new DrivingZone { Name = name }).ToArray();
         context.DrivingZones.AddRange(zones);
 
-        var questionAreas = new[]
-        {
-            new QuestionArea { Name = "Saobraćajni znakovi" },
-            new QuestionArea { Name = "Pravila vožnje" },
-            new QuestionArea { Name = "Situacije u saobraćaju" },
-            new QuestionArea { Name = "Prva pomoć" },
-            new QuestionArea { Name = "Održavanje vozila" },
-        };
+        var questionAreas = SeedFleetAndPeopleData.QuestionAreas.Select(name => new QuestionArea { Name = name }).ToArray();
         context.QuestionAreas.AddRange(questionAreas);
 
         await context.SaveChangesAsync(cancellationToken);
 
-        var categoryB = categories.Single(c => c.Code == "B");
-        var sarajevo = cities[0];
-        var mostar = cities[1];
+        return new SeedReference(cities, categories.ToDictionary(c => c.Code), requestStatuses.ToDictionary(s => s.Code), serviceTypes, vehicleServiceTypes, zones, questionAreas);
+    }
 
-        // --- Users: the 3 required demo accounts (upute.md §5) + a handful more for testing ---
-        var demoPasswordHash = PasswordHasher.Hash("test");
+    private static async Task<SeedPeople> SeedPeopleAsync(EAutoskolaDbContext context, SeedReference reference, DateTime now, CancellationToken cancellationToken)
+    {
+        var passwordHash = PasswordHasher.Hash(DemoPassword);
+        var ordinal = 0;
 
-        var admin = new User
+        User Build(SeedPerson person, string role, DateTime createdAt) => new()
         {
-            Email = "desktop", PasswordHash = demoPasswordHash, Role = Role.Admin,
-            FirstName = "Admin", LastName = "Korisnik", PhoneNumber = "+387 61 000 000",
-            CityId = sarajevo.Id,
-        };
-        var demoStudent = new User
-        {
-            Email = "mobile", PasswordHash = demoPasswordHash, Role = Role.Student,
-            FirstName = "Mobile", LastName = "Učenik", PhoneNumber = "+387 61 111 111",
-            CityId = sarajevo.Id,
-        };
-        var demoInstructor = new User
-        {
-            Email = "instruktor", PasswordHash = demoPasswordHash, Role = Role.Instructor,
-            FirstName = "Instruktor", LastName = "Test", PhoneNumber = "+387 61 222 222",
-            CityId = sarajevo.Id,
+            Email = SeedFleetAndPeopleData.LoginFor(person),
+            PasswordHash = passwordHash,
+            Role = role,
+            FirstName = person.FirstName,
+            LastName = person.LastName,
+            PhoneNumber = SeedFleetAndPeopleData.PhoneFor(ordinal++),
+            CityId = reference.Cities[person.CityIndex].Id,
+            ProfileImagePath = person.Photo ? SeedImages.Copy(SeedFleetAndPeopleData.PhotoFileFor(person)) : null,
+            IsActive = person.Active,
+            CreatedAt = createdAt,
         };
 
-        var studentUsers = new[]
-        {
-            demoStudent,
-            new User { Email = "amina.hodzic@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Student, FirstName = "Amina", LastName = "Hodžić", PhoneNumber = "+387 61 123 456", CityId = sarajevo.Id, ProfileImagePath = CopySeedImage("profile-amina-hodzic.jpg") },
-            new User { Email = "emir.mustafic@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Student, FirstName = "Emir", LastName = "Mustafić", PhoneNumber = "+387 61 234 567", CityId = mostar.Id },
-            new User { Email = "lejla.basic@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Student, FirstName = "Lejla", LastName = "Bašić", PhoneNumber = "+387 61 345 678", CityId = sarajevo.Id },
-            new User { Email = "adnan.zukic@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Student, FirstName = "Adnan", LastName = "Zukić", PhoneNumber = "+387 61 456 789", CityId = mostar.Id, ProfileImagePath = CopySeedImage("profile-adnan-zukic.jpg") },
-        };
+        var admins = SeedFleetAndPeopleData.Admins
+            .Select((person, i) => Build(person, Role.Admin, now.AddDays(-340 + i)))
+            .ToArray();
 
-        var instructorUsers = new[]
-        {
-            demoInstructor,
-            new User { Email = "damir.kovacevic@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Instructor, FirstName = "Damir", LastName = "Kovačević", PhoneNumber = "+387 61 654 321", CityId = sarajevo.Id, ProfileImagePath = CopySeedImage("profile-damir-kovacevic.jpg") },
-            new User { Email = "sanja.peric@eautoskola.ba", PasswordHash = demoPasswordHash, Role = Role.Instructor, FirstName = "Sanja", LastName = "Perić", PhoneNumber = "+387 61 765 432", CityId = mostar.Id, ProfileImagePath = CopySeedImage("profile-sanja-peric.jpg") },
-        };
+        var instructors = SeedFleetAndPeopleData.Instructors
+            .Select((person, i) =>
+            {
+                var user = Build(person, Role.Instructor, now.AddDays(-330 + i * 3));
+                user.InstructorProfile = new InstructorProfile { VehicleCategoryId = reference.Categories[person.Category].Id };
+                return user;
+            })
+            .ToArray();
 
-        context.Users.Add(admin);
-        context.Users.AddRange(studentUsers);
-        context.Users.AddRange(instructorUsers);
-        await context.SaveChangesAsync(cancellationToken);
+        var establishedCount = SeedFleetAndPeopleData.Students.Length - SeedFleetAndPeopleData.NewStudentCount;
+        var students = SeedFleetAndPeopleData.Students
+            .Select((person, i) =>
+            {
+                // The last few students registered this month (dashboard "+N ovaj mjesec").
+                var createdAt = i < establishedCount
+                    ? now.AddDays(-320 + i * 14)
+                    : now.Date.AddHours(6).AddDays(-(i - establishedCount));
+                var user = Build(person, Role.Student, createdAt);
+                user.StudentProfile = new StudentProfile { VehicleCategoryId = reference.Categories[person.Category].Id, RegisteredAt = createdAt };
+                return user;
+            })
+            .ToArray();
 
-        context.StudentProfiles.AddRange(studentUsers.Select(u => new StudentProfile
-        {
-            UserId = u.Id, VehicleCategoryId = categoryB.Id, RegisteredAt = DateTime.UtcNow,
-        }));
-        context.InstructorProfiles.AddRange(instructorUsers.Select(u => new InstructorProfile
-        {
-            UserId = u.Id, VehicleCategoryId = categoryB.Id,
-        }));
+        context.Users.AddRange(admins);
+        context.Users.AddRange(instructors);
+        context.Users.AddRange(students);
 
         // Same method self-registration and the admin "Novi korisnik" use.
-        foreach (var student in studentUsers)
+        foreach (var student in students)
         {
             await PackageChargeProvisioner.AddPackageChargesAsync(context, student, cancellationToken);
         }
-        await context.SaveChangesAsync(cancellationToken);
 
-        // --- Vehicles (same registrations as the docs/prijava.md mockup) ---
-        var categoryC = categories.Single(c => c.Code == "C");
-        var categoryD = categories.Single(c => c.Code == "D");
-
-        var vehicles = new[]
+        // The package belongs to the day the student registered, not to the seeding day.
+        foreach (var charge in context.Charges.Local)
         {
-            new Vehicle { RegistrationNumber = "E22-A-123", Make = "VW", Model = "Polo", VehicleCategoryId = categoryB.Id, ManufactureYear = 2021, Status = VehicleStatus.Active, ImagePath = CopySeedImage("vehicle-vw-polo.jpg") },
-            new Vehicle { RegistrationNumber = "E54-K-456", Make = "Škoda", Model = "Octavia", VehicleCategoryId = categoryB.Id, ManufactureYear = 2020, Status = VehicleStatus.Active, ImagePath = CopySeedImage("vehicle-skoda-octavia.jpg") },
-            new Vehicle { RegistrationNumber = "E88-M-789", Make = "Ford", Model = "Focus", VehicleCategoryId = categoryB.Id, ManufactureYear = 2019, Status = VehicleStatus.InService, ImagePath = CopySeedImage("vehicle-ford-focus.jpg") },
-            new Vehicle { RegistrationNumber = "E31-T-321", Make = "Mercedes", Model = "Sprinter", VehicleCategoryId = categoryC.Id, ManufactureYear = 2022, Status = VehicleStatus.Active },
-            new Vehicle { RegistrationNumber = "E33-B-654", Make = "VW", Model = "Crafter", VehicleCategoryId = categoryD.Id, ManufactureYear = 2021, Status = VehicleStatus.Active },
-        };
-        context.Vehicles.AddRange(vehicles);
-        await context.SaveChangesAsync(cancellationToken);
-
-        var polo = vehicles[0];
-        var octavia = vehicles[1];
-        var focus = vehicles[2];
-        var redovniServis = vehicleServiceTypes[0];
-        var zamjenaUlja = vehicleServiceTypes[1];
-        var tehnickiPregled = vehicleServiceTypes[2];
-
-        context.VehicleServices.AddRange(
-            new VehicleService { VehicleId = polo.Id, ServiceDate = new DateTime(2026, 4, 10, 0, 0, 0, DateTimeKind.Utc), VehicleServiceTypeId = redovniServis.Id, Description = "Redovni servis - zamjena filtera i tekućina", Cost = 120.00m, Status = VehicleServiceStatus.Completed, CreatedAt = DateTime.UtcNow.AddDays(-6) },
-            new VehicleService { VehicleId = focus.Id, ServiceDate = new DateTime(2026, 5, 2, 0, 0, 0, DateTimeKind.Utc), VehicleServiceTypeId = zamjenaUlja.Id, Description = "Zamjena motornog ulja i filtera", Cost = 60.00m, Status = VehicleServiceStatus.InProgress, CreatedAt = DateTime.UtcNow.AddDays(-4) },
-            new VehicleService { VehicleId = octavia.Id, ServiceDate = new DateTime(2026, 5, 20, 0, 0, 0, DateTimeKind.Utc), VehicleServiceTypeId = tehnickiPregled.Id, Description = "Godišnji tehnički pregled", Cost = 80.00m, Status = VehicleServiceStatus.Scheduled, CreatedAt = DateTime.UtcNow.AddDays(-2) });
-
-        // --- A handful of sample lessons across every status, for testing list/filter endpoints ---
-        var centar = zones[0];
-        var staroGrad = zones[1];
-        var amina = studentUsers[1];
-        var emir = studentUsers[2];
-        var lejla = studentUsers[3];
-        var damir = instructorUsers[1];
-        var sanja = instructorUsers[2];
-
-        var now = DateTime.UtcNow;
-
-        var pendingLesson = new Lesson
-        {
-            StudentId = amina.Id, InstructorId = damir.Id, VehicleId = polo.Id, DrivingZoneId = centar.Id,
-            StartsAtUtc = now.AddDays(3).Date.AddHours(10), EndsAtUtc = now.AddDays(3).Date.AddHours(11),
-            LessonNumber = 1, Note = "Molim da vježbamo parkiranje.", Status = LessonStatus.Pending,
-        };
-        var confirmedLesson = new Lesson
-        {
-            StudentId = emir.Id, InstructorId = damir.Id, VehicleId = octavia.Id, DrivingZoneId = staroGrad.Id,
-            StartsAtUtc = now.AddDays(2).Date.AddHours(14), EndsAtUtc = now.AddDays(2).Date.AddHours(15),
-            LessonNumber = 1, Status = LessonStatus.Confirmed,
-        };
-        var completedLesson = new Lesson
-        {
-            StudentId = amina.Id, InstructorId = sanja.Id, VehicleId = polo.Id, DrivingZoneId = centar.Id,
-            StartsAtUtc = now.AddDays(-5).Date.AddHours(9), EndsAtUtc = now.AddDays(-5).Date.AddHours(10),
-            LessonNumber = 2, Status = LessonStatus.Completed, Rating = 4,
-            InstructorNotes = "Dobra vožnja, treba poraditi na paralelnom parkiranju.",
-            StartedAt = now.AddDays(-5).Date.AddHours(9), CompletedAt = now.AddDays(-5).Date.AddHours(10),
-        };
-        var cancelledLesson = new Lesson
-        {
-            StudentId = lejla.Id, InstructorId = sanja.Id, VehicleId = octavia.Id, DrivingZoneId = centar.Id,
-            StartsAtUtc = now.AddDays(-2).Date.AddHours(16), EndsAtUtc = now.AddDays(-2).Date.AddHours(17),
-            LessonNumber = 1, Status = LessonStatus.Cancelled, RejectionReason = "Vozilo nije dostupno u terminu.",
-        };
-
-        // Two lessons later today (the next full hours), so the dashboard's "today" table isn't
-        // empty. Near midnight they simply fall on tomorrow.
-        var nextFullHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, DateTimeKind.Utc).AddHours(1);
-        var todayConfirmedLesson = new Lesson
-        {
-            StudentId = emir.Id, InstructorId = sanja.Id, VehicleId = polo.Id, DrivingZoneId = centar.Id,
-            StartsAtUtc = nextFullHour, EndsAtUtc = nextFullHour.AddHours(1),
-            LessonNumber = 2, Status = LessonStatus.Confirmed,
-        };
-        var todayPendingLesson = new Lesson
-        {
-            StudentId = lejla.Id, InstructorId = damir.Id, VehicleId = octavia.Id, DrivingZoneId = zones[2].Id,
-            StartsAtUtc = nextFullHour.AddHours(2), EndsAtUtc = nextFullHour.AddHours(3),
-            LessonNumber = 2, Note = "Vježba vožnje u gradu.", Status = LessonStatus.Pending,
-        };
-
-        context.Lessons.AddRange(pendingLesson, confirmedLesson, completedLesson, cancelledLesson, todayConfirmedLesson, todayPendingLesson);
-        await context.SaveChangesAsync(cancellationToken);
-
-        context.LessonStatusHistories.AddRange(
-            new LessonStatusHistory { LessonId = pendingLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Pending, ChangedByUserId = amina.Id, Reason = "Kreiran zahtjev za čas." },
-            new LessonStatusHistory { LessonId = confirmedLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Confirmed, ChangedByUserId = damir.Id, Reason = "Potvrđen termin." },
-            new LessonStatusHistory { LessonId = completedLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Confirmed, ChangedByUserId = sanja.Id, Reason = "Potvrđen termin." },
-            new LessonStatusHistory { LessonId = completedLesson.Id, FromStatus = LessonStatus.Confirmed, ToStatus = LessonStatus.Completed, ChangedByUserId = sanja.Id, Reason = "Čas uspješno odrađen." },
-            new LessonStatusHistory { LessonId = cancelledLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Cancelled, ChangedByUserId = sanja.Id, Reason = "Vozilo nije dostupno u terminu." },
-            new LessonStatusHistory { LessonId = todayConfirmedLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Confirmed, ChangedByUserId = sanja.Id, Reason = "Potvrđen termin." },
-            new LessonStatusHistory { LessonId = todayPendingLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Pending, ChangedByUserId = lejla.Id, Reason = "Kreiran zahtjev za čas." });
-
-        context.Notifications.AddRange(
-            new Notification { UserId = damir.Id, Title = "Novi zahtjev za čas", Message = "Amina Hodžić je zatražila čas vožnje.", Type = NotificationType.LessonCreated },
-            new Notification { UserId = emir.Id, Title = "Čas potvrđen", Message = "Vaš čas vožnje je potvrđen.", Type = NotificationType.LessonConfirmed },
-            new Notification { UserId = amina.Id, Title = "Čas završen", Message = "Vaš čas vožnje je uspješno odrađen.", Type = NotificationType.LessonCompleted, IsRead = true },
-            new Notification { UserId = lejla.Id, Title = "Zahtjev otkazan", Message = "Vaš zahtjev je otkazan: Vozilo nije dostupno u terminu.", Type = NotificationType.LessonCancelled });
-
-        await context.SaveChangesAsync(cancellationToken);
-
-        await SeedTestsAndStudyLessonsAsync(context, questionAreas, demoStudent, cancellationToken);
-        await SeedExtraLessonPaymentsAsync(context, serviceTypes[3], studentUsers[4], admin, damir, sanja, polo, octavia, centar, staroGrad, cancellationToken);
-    }
-
-    /// <summary>
-    /// One student (adnan.zukic) who is already past the 30-lesson package quota, with the two
-    /// extra-lesson cases the payment flow needs:
-    ///  - an earlier extra lesson that was paid and then cancelled+refunded - pure historical
-    ///    data (the seeded payment has no real PayPal capture, so it can never be refunded
-    ///    through the API again), and
-    ///  - an upcoming Confirmed extra lesson more than 48h away whose charge is still UNPAID:
-    ///    the one to pay with a real PayPal sandbox buyer and then cancel for a real refund.
-    /// </summary>
-    private static async Task SeedExtraLessonPaymentsAsync(
-        EAutoskolaDbContext context, ServiceType extraLessonType, User student, User admin, User damir, User sanja,
-        Vehicle polo, Vehicle octavia, DrivingZone centar, DrivingZone staroGrad, CancellationToken cancellationToken)
-    {
-        var now = DateTime.UtcNow;
-
-        // The 30 lessons included in the package, all already completed.
-        var packageLessons = Enumerable.Range(0, PaymentConstants.PackagePracticalLessonQuota).Select(i =>
-        {
-            var start = now.Date.AddDays(-90 + i * 2).AddHours(9);
-            return new Lesson
+            charge.CreatedAt = charge.Student!.CreatedAt;
+            foreach (var installment in charge.Installments)
             {
-                StudentId = student.Id, InstructorId = i % 2 == 0 ? damir.Id : sanja.Id, VehicleId = polo.Id, DrivingZoneId = centar.Id,
-                StartsAtUtc = start, EndsAtUtc = start.AddHours(1), LessonNumber = i + 1,
-                Status = LessonStatus.Completed, Rating = 4, StartedAt = start, CompletedAt = start.AddHours(1),
-                CreatedAt = start.AddDays(-3),
-            };
-        }).ToList();
-        context.Lessons.AddRange(packageLessons);
-        await context.SaveChangesAsync(cancellationToken);
-
-        foreach (var lesson in packageLessons)
-        {
-            context.LessonStatusHistories.AddRange(
-                new LessonStatusHistory { LessonId = lesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Confirmed, ChangedByUserId = lesson.InstructorId, Reason = "Potvrđen termin.", ChangedAt = lesson.CreatedAt.AddDays(1) },
-                new LessonStatusHistory { LessonId = lesson.Id, FromStatus = LessonStatus.Confirmed, ToStatus = LessonStatus.Completed, ChangedByUserId = lesson.InstructorId, Reason = "Čas uspješno odrađen.", ChangedAt = lesson.CompletedAt!.Value });
-        }
-
-        // Historical: extra lesson #31, paid, then cancelled by the admin and refunded.
-        var refundedStart = now.Date.AddDays(-12).AddHours(11);
-        var refundedLesson = new Lesson
-        {
-            StudentId = student.Id, InstructorId = sanja.Id, VehicleId = polo.Id, DrivingZoneId = centar.Id,
-            StartsAtUtc = refundedStart, EndsAtUtc = refundedStart.AddHours(1), LessonNumber = PaymentConstants.PackagePracticalLessonQuota + 1,
-            Status = LessonStatus.Cancelled, RejectionReason = "Otkazano od strane administracije.",
-            CreatedAt = refundedStart.AddDays(-6),
-        };
-        context.Lessons.Add(refundedLesson);
-        await context.SaveChangesAsync(cancellationToken);
-
-        var paidAt = refundedStart.AddDays(-4);
-        var refundedAt = refundedStart.AddDays(-1);
-        var amountEur = CurrencyConversion.KmToEur(extraLessonType.Price);
-        context.Charges.Add(new Charge
-        {
-            StudentId = student.Id, ServiceTypeId = extraLessonType.Id, LessonId = refundedLesson.Id,
-            Amount = extraLessonType.Price, Description = $"{extraLessonType.Name} ({refundedStart:dd.MM.yyyy.})",
-            Status = ChargeStatus.Cancelled, CreatedAt = paidAt.AddDays(-1),
-            Installments =
-            [
-                new Installment
-                {
-                    Number = 1, Amount = extraLessonType.Price, DueDate = refundedStart, Status = InstallmentStatus.Cancelled, CreatedAt = paidAt.AddDays(-1),
-                    Payments =
-                    [
-                        new Payment
-                        {
-                            Amount = extraLessonType.Price, PayPalAmount = amountEur, PayPalCurrency = "EUR", CapturedAmount = amountEur,
-                            Status = PaymentStatus.Refunded, PayPalOrderId = "SEED-ORDER-0001",
-                            PayPalApprovalUrl = "https://www.sandbox.paypal.com/checkoutnow?token=SEED-ORDER-0001",
-                            PayPalCaptureId = "SEED-CAPTURE-0001", CreatedAt = paidAt, CompletedAt = paidAt,
-                            Refunds =
-                            [
-                                new Refund
-                                {
-                                    Amount = amountEur, AmountKm = extraLessonType.Price, PayPalRefundId = "SEED-REFUND-0001",
-                                    Status = RefundStatus.Completed, CreatedAt = refundedAt,
-                                },
-                            ],
-                        },
-                    ],
-                },
-            ],
-        });
-        context.LessonStatusHistories.AddRange(
-            new LessonStatusHistory { LessonId = refundedLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Confirmed, ChangedByUserId = sanja.Id, Reason = "Potvrđen termin.", ChangedAt = refundedStart.AddDays(-5) },
-            new LessonStatusHistory { LessonId = refundedLesson.Id, FromStatus = LessonStatus.Confirmed, ToStatus = LessonStatus.Cancelled, ChangedByUserId = admin.Id, Reason = "Otkazano od strane administracije.", ChangedAt = refundedAt });
-
-        // Upcoming: extra lesson #32, confirmed, charge unpaid.
-        var upcomingStart = now.Date.AddDays(5).AddHours(10);
-        var upcomingLesson = new Lesson
-        {
-            StudentId = student.Id, InstructorId = damir.Id, VehicleId = octavia.Id, DrivingZoneId = staroGrad.Id,
-            StartsAtUtc = upcomingStart, EndsAtUtc = upcomingStart.AddHours(1), LessonNumber = PaymentConstants.PackagePracticalLessonQuota + 2,
-            Status = LessonStatus.Confirmed,
-        };
-        context.Lessons.Add(upcomingLesson);
-        await context.SaveChangesAsync(cancellationToken);
-
-        context.Charges.Add(new Charge
-        {
-            StudentId = student.Id, ServiceTypeId = extraLessonType.Id, LessonId = upcomingLesson.Id,
-            Amount = extraLessonType.Price, Description = $"{extraLessonType.Name} ({upcomingStart:dd.MM.yyyy.})",
-            Installments = [new Installment { Number = 1, Amount = extraLessonType.Price, DueDate = upcomingStart }],
-        });
-        context.LessonStatusHistories.Add(
-            new LessonStatusHistory { LessonId = upcomingLesson.Id, FromStatus = LessonStatus.Pending, ToStatus = LessonStatus.Confirmed, ChangedByUserId = damir.Id, Reason = "Potvrđen termin." });
-        context.Notifications.Add(new Notification
-        {
-            UserId = student.Id, Title = "Čas potvrđen", Type = NotificationType.LessonConfirmed,
-            Message = $"Vaš zahtjev za čas vožnje je potvrđen. Ovaj čas nije obuhvaćen paketom i potrebno ga je platiti ({extraLessonType.Price:F2} KM).",
-        });
-
-        await context.SaveChangesAsync(cancellationToken);
-    }
-
-    /// <summary>Tests/questions/study lessons, plus one real TestAttempt with intentional
-    /// errors concentrated in "Saobraćajni znakovi" for the demo student - gives the
-    /// Recommender module genuine signal to work with instead of an empty cold-start.</summary>
-    private static async Task SeedTestsAndStudyLessonsAsync(EAutoskolaDbContext context, QuestionArea[] questionAreas, User demoStudent, CancellationToken cancellationToken)
-    {
-        var signsArea = questionAreas[0]; // Saobraćajni znakovi
-        var rulesArea = questionAreas[1]; // Pravila vožnje
-        var situationsArea = questionAreas[2]; // Situacije u saobraćaju
-        var firstAidArea = questionAreas[3]; // Prva pomoć
-        var maintenanceArea = questionAreas[4]; // Održavanje vozila
-
-        // --- Study lessons (docs/prijava.md §4.2.9) ---
-        var studyLessons = new[]
-        {
-            new StudyLesson { Title = "Saobraćajni znakovi", QuestionAreaId = signsArea.Id, Tags = "saobracajni znakovi, zabrana, obaveza, opasnost", ValidForYear = 2026, ReadingMinutes = 8, ChapterLabel = "Poglavlje 3.1" },
-            new StudyLesson { Title = "Pravila vožnje", QuestionAreaId = rulesArea.Id, Tags = "pravila voznje, prvenstvo prolaza, brzina", ValidForYear = 2026, ReadingMinutes = 10, ChapterLabel = "Poglavlje 2.1" },
-            new StudyLesson { Title = "Situacije u saobraćaju", QuestionAreaId = situationsArea.Id, Tags = "raskrsnice, situacije, pjesaci", ValidForYear = 2026, ReadingMinutes = 9, ChapterLabel = "Poglavlje 4.1" },
-            new StudyLesson { Title = "Prva pomoć", QuestionAreaId = firstAidArea.Id, Tags = "prva pomoc, povrede, hitna pomoc", ValidForYear = 2026, ReadingMinutes = 6, ChapterLabel = "Poglavlje 5.1" },
-            new StudyLesson { Title = "Održavanje vozila", QuestionAreaId = maintenanceArea.Id, Tags = "odrzavanje, motor, gume, tekucine", ValidForYear = 2026, ReadingMinutes = 7, ChapterLabel = "Poglavlje 6.1" },
-        };
-        context.StudyLessons.AddRange(studyLessons);
-        await context.SaveChangesAsync(cancellationToken);
-
-        foreach (var lesson in studyLessons)
-        {
-            context.StudyLessonSections.AddRange(
-                new StudyLessonSection { StudyLessonId = lesson.Id, Title = "Uvod", Content = $"Uvod u oblast: {lesson.Title}.", SortOrder = 1 },
-                new StudyLessonSection { StudyLessonId = lesson.Id, Title = "Osnovna pravila", Content = $"Detaljan opis osnovnih pravila za {lesson.Title.ToLowerInvariant()}.", SortOrder = 2 },
-                new StudyLessonSection { StudyLessonId = lesson.Id, Title = "Primjeri", Content = "Praktični primjeri i česte greške kandidata.", SortOrder = 3 });
-        }
-        await context.SaveChangesAsync(cancellationToken);
-
-        // --- Test 1: Saobraćajni znakovi (seeded with a real, scored attempt below) ---
-        var signsTest = new Test { Title = "Test 1 - Saobraćajni znakovi", QuestionAreaId = signsArea.Id, PassThresholdPercent = 70 };
-        var rulesTest = new Test { Title = "Test 2 - Pravila vožnje", QuestionAreaId = rulesArea.Id, PassThresholdPercent = 70 };
-        context.Tests.AddRange(signsTest, rulesTest);
-        await context.SaveChangesAsync(cancellationToken);
-
-        var signsQuestions = new[]
-        {
-            BuildQuestion(signsTest.Id, signsArea.Id, "Koji znak označava obavezno skretanje udesno?", ["Zabrana skretanja", "Obavezno skretanje udesno", "Jednosmjerni saobraćaj", "Opasna krivina"], 1, CopySeedImage("sign-mandatory-right-turn.png")),
-            BuildQuestion(signsTest.Id, signsArea.Id, "Šta označava trougaoni znak sa crvenim okvirom?", ["Obavezu", "Zabranu", "Opasnost", "Obavještenje"], 2, CopySeedImage("sign-no-entry.png")),
-            BuildQuestion(signsTest.Id, signsArea.Id, "Okrugli znak sa plavom pozadinom označava:", ["Zabranu", "Opasnost", "Obavezu", "Prvenstvo prolaza"], 2, CopySeedImage("sign-roundabout.png")),
-            BuildQuestion(signsTest.Id, signsArea.Id, "Znak 'Stop' zahtijeva:", ["Usporavanje", "Potpuno zaustavljanje", "Promjenu trake", "Ubrzanje"], 1),
-            BuildQuestion(signsTest.Id, signsArea.Id, "Dopunska tabla ispod znaka obično označava:", ["Dodatno pojašnjenje znaka", "Novi znak", "Prestanak važenja prethodnog znaka", "Ništa posebno"], 0),
-        };
-        var rulesQuestions = new[]
-        {
-            BuildQuestion(rulesTest.Id, rulesArea.Id, "Ko ima prvenstvo prolaza na raskrsnici bez signalizacije?", ["Vozilo sa lijeve strane", "Vozilo sa desne strane", "Brže vozilo", "Veće vozilo"], 1),
-            BuildQuestion(rulesTest.Id, rulesArea.Id, "Maksimalna brzina u naselju, osim ako nije drugačije označeno, je:", ["50 km/h", "60 km/h", "70 km/h", "80 km/h"], 0),
-            BuildQuestion(rulesTest.Id, rulesArea.Id, "Preticanje je zabranjeno:", ["Na pravom putu", "Na raskrsnici", "Na autoputu", "U naselju"], 1),
-        };
-
-        context.Questions.AddRange(signsQuestions.Select(q => q.Question).Concat(rulesQuestions.Select(q => q.Question)));
-        await context.SaveChangesAsync(cancellationToken);
-
-        foreach (var (question, options) in signsQuestions.Concat(rulesQuestions))
-        {
-            foreach (var option in options)
-            {
-                option.QuestionId = question.Id;
+                installment.CreatedAt = charge.Student.CreatedAt;
             }
-            context.AnswerOptions.AddRange(options);
         }
+
         await context.SaveChangesAsync(cancellationToken);
+        return new SeedPeople(admins, instructors, students);
+    }
 
-        // --- A real, scored TestAttempt for the demo student: 2/5 correct on the Signs test,
-        // with every error concentrated in the Signs area - clear recommender signal. ---
-        var attempt = new TestAttempt
-        {
-            StudentId = demoStudent.Id, TestId = signsTest.Id,
-            StartedAt = DateTime.UtcNow.AddMinutes(-20), SubmittedAt = DateTime.UtcNow.AddMinutes(-15),
-            CorrectCount = 2, IncorrectCount = 3, Percent = 40, Passed = false,
-        };
-        context.TestAttempts.Add(attempt);
-        await context.SaveChangesAsync(cancellationToken);
-
-        // Questions 1 and 4 (index 0, 3) answered correctly; 2, 3, 5 answered wrong.
-        var correctIndexes = new HashSet<int> { 0, 3 };
-        for (var i = 0; i < signsQuestions.Length; i++)
-        {
-            var (question, options) = signsQuestions[i];
-            var correctOption = options.First(o => o.IsCorrect);
-            var selectedOption = correctIndexes.Contains(i) ? correctOption : options.First(o => !o.IsCorrect);
-
-            context.AttemptAnswers.Add(new AttemptAnswer
+    private static async Task<SeedFleet> SeedFleetAsync(EAutoskolaDbContext context, SeedReference reference, DateTime now, CancellationToken cancellationToken)
+    {
+        var vehicles = SeedFleetAndPeopleData.Vehicles
+            .Select(v => new Vehicle
             {
-                TestAttemptId = attempt.Id, QuestionId = question.Id,
-                SelectedAnswerOptionId = selectedOption.Id, IsCorrect = selectedOption.IsCorrect,
-            });
-        }
+                RegistrationNumber = v.RegistrationNumber,
+                Make = v.Make,
+                Model = v.Model,
+                VehicleCategoryId = reference.Categories[v.Category].Id,
+                ManufactureYear = v.Year,
+                Status = v.Status,
+                ImagePath = v.Photo is null ? null : SeedImages.Copy(v.Photo),
+            })
+            .ToArray();
+        context.Vehicles.AddRange(vehicles);
+
+        context.VehicleServices.AddRange(SeedFleetAndPeopleData.Maintenance.Select(m => new VehicleService
+        {
+            Vehicle = vehicles[m.VehicleIndex],
+            VehicleServiceTypeId = reference.VehicleServiceTypes[m.TypeIndex].Id,
+            ServiceDate = now.Date.AddDays(m.DaysFromToday),
+            Description = m.Description,
+            Cost = m.Cost,
+            Status = m.Status,
+            CreatedAt = m.Status == VehicleServiceStatus.Scheduled ? now.AddDays(-3) : now.Date.AddDays(m.DaysFromToday).AddHours(8),
+        }));
+
         await context.SaveChangesAsync(cancellationToken);
-    }
-
-    private static (Question Question, AnswerOption[] Options) BuildQuestion(int testId, int questionAreaId, string text, string[] optionTexts, int correctIndex, string? imagePath = null)
-    {
-        var question = new Question { Text = text, QuestionAreaId = questionAreaId, TestId = testId, ImagePath = imagePath };
-        var options = optionTexts.Select((t, i) => new AnswerOption { Text = t, IsCorrect = i == correctIndex }).ToArray();
-        return (question, options);
-    }
-
-    /// <summary>Copies a placeholder image from the build output's SeedAssets (see
-    /// eAutoskola.Infrastructure.csproj) into ./uploads, the same folder `FileStorageService`
-    /// serves real uploads from, and returns the path exactly as that service would
-    /// (upute.md §3.1: "Seed mora sadržavati i slike ako domena koristi slike.").</summary>
-    private static string CopySeedImage(string fileName)
-    {
-        var source = Path.Combine(AppContext.BaseDirectory, "SeedAssets", fileName);
-        var uploadsDir = Path.Combine("uploads", "seed");
-        Directory.CreateDirectory(uploadsDir);
-
-        var destination = Path.Combine(uploadsDir, fileName);
-        File.Copy(source, destination, overwrite: true);
-
-        return destination.Replace('\\', '/');
+        return new SeedFleet(vehicles);
     }
 }

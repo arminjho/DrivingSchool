@@ -4,6 +4,7 @@
 **/*.user
 .git/
 .env
+.env-tajne.zip
 docs/
 UI/
 *.md

@@ -23,6 +23,8 @@ import '../../widgets/ui/app_dialog.dart';
 import '../../widgets/ui/app_messages.dart';
 import '../../widgets/ui/app_states.dart';
 import '../../widgets/ui/app_text_field.dart';
+import '../../widgets/ui/form_prerequisites.dart';
+import '../../widgets/ui/app_thumbnail.dart';
 import '../../widgets/ui/image_picker_field.dart';
 import '../../widgets/ui/paged_table.dart';
 
@@ -68,6 +70,9 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
   }
 
   Future<void> _openForm({Question? initial}) async {
+    if (initial == null && !await requireRecords(context, count: _areaProvider.totalCount, missingMessage: AppStrings.noQuestionAreasPrefix)) return;
+    if (!mounted) return;
+
     final formKey = GlobalKey<FormBuilderState>();
     var isSubmitting = false;
     var correctIndex = initial?.answerOptions.indexWhere((o) => o.isCorrect) ?? 0;
@@ -229,8 +234,8 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
             AppColumn<Question>(label: AppStrings.columnQuestionArea, flex: 2, cell: (context, row) => Text(row.questionAreaName)),
             AppColumn<Question>(
               label: AppStrings.fieldQuestionImage,
-              width: 90,
-              cell: (context, row) => Icon(row.imagePath == null ? Icons.image_not_supported_outlined : Icons.image_outlined, size: 18),
+              width: 100,
+              cell: (context, row) => AppThumbnail(imagePath: row.imagePath, fallbackIcon: Icons.image_not_supported_outlined),
             ),
           ],
         ),

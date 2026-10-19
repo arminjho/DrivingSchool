@@ -7,7 +7,7 @@ services:
       MSSQL_SA_PASSWORD: ${DB_SA_PASSWORD}
       MSSQL_PID: Developer
     ports:
-      - "1433:1433"
+      - "14333:1433"
     volumes:
       - eautoskola-sql-data:/var/opt/mssql
     healthcheck:
@@ -60,6 +60,8 @@ services:
       RABBITMQ_PORT: 5672
     ports:
       - "5000:5000"
+    volumes:
+      - eautoskola-uploads:/app/uploads
     depends_on:
       eautoskola-sql:
         condition: service_healthy
@@ -96,3 +98,4 @@ networks:
 
 volumes:
   eautoskola-sql-data:
+  eautoskola-uploads:

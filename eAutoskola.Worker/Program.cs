@@ -4,7 +4,6 @@ using eAutoskola.Worker.Configuration;
 using eAutoskola.Worker.Handlers;
 using eAutoskola.Worker.Mail;
 using eAutoskola.Worker.Messaging;
-using Microsoft.Extensions.Hosting;
 
 // .env must be loaded before any *Options class constructor reads an environment variable.
 Env.TraversePath().Load();

@@ -2,6 +2,7 @@ using eAutoskola.Application.Common;
 using eAutoskola.Domain.Entities;
 using eAutoskola.Domain.Enums;
 using eAutoskola.Domain.Exceptions;
+using eAutoskola.Domain.Resources;
 using eAutoskola.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 
@@ -47,17 +48,20 @@ public class VehicleMaintenanceService : BaseCRUDService<VehicleServiceDto, Vehi
     {
         if (!await Context.Vehicles.AnyAsync(v => v.Id == request.VehicleId, cancellationToken))
         {
-            throw new ValidationException(nameof(request.VehicleId), "Odabrano vozilo ne postoji.");
+            throw new ValidationException(nameof(request.VehicleId), Messages.VehicleNotFound);
         }
         entity.Status = VehicleServiceStatus.Scheduled;
     }
 
     /// <summary>Setting a service to InProgress puts the vehicle InService; completing it
     /// returns the vehicle to Active - both saved in the single SaveChangesAsync that follows
-    /// this hook (one transaction, upute.md §3.4).</summary>
+    /// this hook (one transaction, upute.md §3.4). The request has already been mapped onto the
+    /// entity when this runs, so the status the service had before is read from EF's tracked
+    /// original value.</summary>
     protected override async Task BeforeUpdateAsync(VehicleService entity, VehicleServiceUpdateRequest request, CancellationToken cancellationToken)
     {
-        if (entity.Status == request.Status)
+        var previousStatus = Context.Entry(entity).Property(s => s.Status).OriginalValue;
+        if (previousStatus == request.Status)
         {
             return;
         }

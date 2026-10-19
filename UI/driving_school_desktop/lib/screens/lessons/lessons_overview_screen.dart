@@ -113,8 +113,6 @@ class _LessonsOverviewScreenState extends State<LessonsOverviewScreen> {
   Widget build(BuildContext context) {
     return PagedTable<Lesson>(
       controller: _controller,
-      title: AppStrings.lessonsOverviewTitle,
-      subtitle: AppStrings.lessonsOverviewSubtitle,
       showSearch: false,
       extraActions: [
         SizedBox(

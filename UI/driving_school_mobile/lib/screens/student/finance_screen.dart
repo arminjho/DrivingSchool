@@ -11,6 +11,7 @@ import '../../models/finance_summary.dart';
 import '../../providers/finance_api.dart';
 import '../../providers/payment_api.dart';
 import '../../widgets/ui/app_card.dart';
+import '../../widgets/ui/app_dialog.dart';
 import '../../widgets/ui/app_messages.dart';
 import '../../widgets/ui/app_states.dart';
 import '../payment/payment_webview_screen.dart';
@@ -55,6 +56,15 @@ class _FinanceScreenState extends State<FinanceScreen> {
   Future<void> _pay() async {
     final installment = _summary?.nextInstallment;
     if (installment == null) return;
+
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: AppStrings.confirmPaymentTitle,
+      message: '${AppStrings.paymentAmountLine(AppFormat.money(installment.amount))}\n\n${AppStrings.paypalSecureNote}',
+      confirmLabel: AppStrings.payWithPayPal,
+      icon: Icons.payments_outlined,
+    );
+    if (!confirmed || !mounted) return;
 
     setState(() => _isPaying = true);
     try {

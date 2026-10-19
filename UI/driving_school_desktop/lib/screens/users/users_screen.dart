@@ -193,7 +193,7 @@ class _UsersScreenState extends State<UsersScreen> {
                     name: 'phoneNumber',
                     label: AppStrings.fieldPhone,
                     icon: Icons.phone_outlined,
-                    hint: '+387 6X XXX XXX',
+                    hint: AppStrings.phoneHint,
                     initialValue: initial?.phoneNumber,
                     validator: AppValidators.phone(),
                   ),
@@ -296,8 +296,6 @@ class _UsersScreenState extends State<UsersScreen> {
   Widget build(BuildContext context) {
     return PagedTable<User>(
       controller: _controller,
-      title: AppStrings.usersTitle,
-      subtitle: AppStrings.usersSubtitle,
       searchHint: AppStrings.usersSearchHint,
       addLabel: AppStrings.usersAddNew,
       onAdd: () => _openForm(),
@@ -335,7 +333,18 @@ class _UsersScreenState extends State<UsersScreen> {
         ),
       ],
       columns: [
-        AppColumn<User>(label: AppStrings.usersColumnName, flex: 2, sortKey: 'FirstName', cell: (context, row) => Text(row.fullName)),
+        AppColumn<User>(
+          label: AppStrings.usersColumnName,
+          flex: 2,
+          sortKey: 'FirstName',
+          cell: (context, row) => Row(
+            children: [
+              AppAvatar(name: row.fullName, size: 30, imagePath: row.profileImagePath),
+              const SizedBox(width: AppSpacing.sm),
+              Flexible(child: Text(row.fullName, overflow: TextOverflow.ellipsis)),
+            ],
+          ),
+        ),
         AppColumn<User>(label: AppStrings.usersColumnEmail, flex: 2, sortKey: 'Email', cell: (context, row) => Text(row.email, overflow: TextOverflow.ellipsis)),
         AppColumn<User>(
           label: AppStrings.usersColumnRole,

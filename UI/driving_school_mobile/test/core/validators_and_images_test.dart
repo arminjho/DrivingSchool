@@ -62,14 +62,6 @@ void main() {
       expect(price(''), AppStrings.required);
     });
 
-    test('wholeNumber rejects decimals and out-of-range values', () {
-      final year = AppValidators.wholeNumber(min: 1980, max: 2100);
-
-      expect(year('2021'), isNull);
-      expect(year('20.5'), AppStrings.invalidWholeNumber);
-      expect(year('1900'), AppStrings.numberAtLeast(1980));
-    });
-
     test('maxLength reports the label and the limit', () {
       expect(AppValidators.maxLength(5, 'Naziv')('abcdef'), AppStrings.maxLength('Naziv', 5));
       expect(AppValidators.maxLength(5, 'Naziv')('abcde'), isNull);

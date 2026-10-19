@@ -6,32 +6,23 @@ import '../models/paged_result.dart';
 import 'base_provider.dart';
 import 'error_text.dart';
 
-/// State for one paged, searchable, sortable list - the logic shared by the desktop table and
-/// the mobile list, so the two screens differ only in how they draw it.
+/// State for one paged, searchable list with infinite scroll: each page is appended to the one
+/// before it ([loadMore]), and a new search or filter starts over from the first page.
 ///
-/// Paging, search and sorting always go to the API (a `PagedQuery`), never filtered in memory.
-/// In [accumulate] mode each page is appended to the one before it (infinite scroll); otherwise
-/// each page replaces the last.
+/// Paging, search and filters always go to the API (a `PagedQuery`), never filtered in memory.
 class PagedController<T> extends ChangeNotifier {
   PagedController({
     required this._fetch,
     this.pageSize = 10,
-    this.accumulate = false,
     this.searchParam = 'search',
-    this.sortBy,
-    this.ascending = true,
     Map<String, dynamic> filters = const {},
     this.debounce = const Duration(milliseconds: 350),
   }) : _filters = Map.of(filters);
 
   final Future<PagedResult<T>> Function(PagedQuery query) _fetch;
   final int pageSize;
-  final bool accumulate;
   final String searchParam;
   final Duration debounce;
-
-  String? sortBy;
-  bool ascending;
 
   final Map<String, dynamic> _filters;
   String _search = '';
@@ -49,21 +40,17 @@ class PagedController<T> extends ChangeNotifier {
   /// One-based, like the API.
   int get page => _page;
   List<T> get items => _items;
-  int get totalCount => _totalCount;
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
   String? get error => _error;
   String get search => _search;
   bool get hasMore => _items.length < _totalCount;
-  int get totalPages => _totalCount <= 0 ? 1 : (_totalCount + pageSize - 1) ~/ pageSize;
 
   Future<void> load() => _loadPage(1);
 
-  Future<void> reload() => _loadPage(accumulate ? 1 : _page);
+  Future<void> reload() => _loadPage(1);
 
-  Future<void> goToPage(int page) => _loadPage(page.clamp(1, totalPages));
-
-  /// Loads the next page onto the end of the list (accumulate mode).
+  /// Loads the next page onto the end of the list.
   Future<void> loadMore() async {
     if (_isLoading || _isLoadingMore || !hasMore) return;
     await _loadPage(_page + 1, append: true);
@@ -85,17 +72,6 @@ class PagedController<T> extends ChangeNotifier {
     unawaited(load());
   }
 
-  /// Sorting by the active column flips the direction; a new column starts ascending.
-  void sortOn(String key) {
-    if (sortBy == key) {
-      ascending = !ascending;
-    } else {
-      sortBy = key;
-      ascending = true;
-    }
-    unawaited(load());
-  }
-
   Future<void> _loadPage(int page, {bool append = false}) async {
     final requestId = ++_requestId;
     if (append) {
@@ -110,8 +86,6 @@ class PagedController<T> extends ChangeNotifier {
       final result = await _fetch(PagedQuery(
         page: page,
         pageSize: pageSize,
-        sortBy: sortBy,
-        ascending: ascending,
         filters: {..._filters, if (_search.isNotEmpty) searchParam: _search},
       ));
 

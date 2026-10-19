@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using eAutoskola.Application.Auth;
 using eAutoskola.Application.Auth.Dto;
 using eAutoskola.Application.Auth.Requests;
@@ -8,9 +9,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace eAutoskola.API.Controllers;
 
 /// <summary>
-/// [AllowAnonymous] only on register/login/forgot-password/reset-password - every other
-/// action requires a valid token (upute.md §5). Login credentials are read from the POST body
-/// only, never query string.
+/// [AllowAnonymous] only on register/login/forgot-password/reset-password and on
+/// register-lookups (the dropdown data the registration form needs before any login exists) -
+/// every other action requires a valid token (upute.md §5). Login credentials are read from the
+/// POST body only, never query string.
 /// </summary>
 [ApiController]
 [Route("api/auth")]
@@ -39,11 +41,12 @@ public class AuthController : ControllerBase
     {
         var jti = User.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti)?.Value;
         var expClaim = User.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
+        var subject = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        if (jti is not null && long.TryParse(expClaim, out var expUnixSeconds))
+        if (jti is not null && int.TryParse(subject, out var userId) && long.TryParse(expClaim, out var expUnixSeconds))
         {
             var expiresAtUtc = DateTimeOffset.FromUnixTimeSeconds(expUnixSeconds).UtcDateTime;
-            await _authService.LogoutAsync(jti, expiresAtUtc, cancellationToken);
+            await _authService.LogoutAsync(userId, jti, expiresAtUtc, cancellationToken);
         }
 
         return NoContent();

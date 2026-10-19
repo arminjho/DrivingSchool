@@ -10,6 +10,12 @@ abstract final class AppFormat {
   static String time(DateTime value) => _time.format(value.toLocal());
   static String dateTime(DateTime value) => _dateTime.format(value.toLocal());
 
+  /// "10:00 - 11:00" - how a lesson's slot reads on a card.
+  static String timeRange(DateTime start, DateTime end) => '${time(start)} - ${time(end)}';
+
+  /// "15.05.2026. 10:00 - 11:00"
+  static String dateTimeRange(DateTime start, DateTime end) => '${date(start)} ${timeRange(start, end)}';
+
   static String timeOfDay(int hour, int minute) =>
       '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
 

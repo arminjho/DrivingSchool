@@ -16,7 +16,7 @@ import 'app_search_field.dart';
 class PagedTable<T> extends StatelessWidget {
   final PagedController<T> controller;
   final List<AppColumn<T>> columns;
-  final String title;
+  final String? title;
   final String? subtitle;
   final String searchHint;
   final bool showSearch;
@@ -40,7 +40,7 @@ class PagedTable<T> extends StatelessWidget {
     super.key,
     required this.controller,
     required this.columns,
-    required this.title,
+    this.title,
     this.subtitle,
     this.searchHint = AppStrings.search,
     this.showSearch = true,
@@ -138,23 +138,24 @@ class PagedTable<T> extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Wrap(
-        alignment: WrapAlignment.spaceBetween,
+        alignment: title == null ? WrapAlignment.end : WrapAlignment.spaceBetween,
         crossAxisAlignment: WrapCrossAlignment.center,
         runSpacing: AppSpacing.sm,
         spacing: AppSpacing.md,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(title, style: context.text.headlineSmall),
-              if (subtitle != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(subtitle!, style: context.text.bodySmall?.copyWith(color: c.textMuted)),
-                ),
-            ],
-          ),
+          if (title != null)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(title!, style: context.text.headlineSmall),
+                if (subtitle != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(subtitle!, style: context.text.bodySmall?.copyWith(color: c.textMuted)),
+                  ),
+              ],
+            ),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [

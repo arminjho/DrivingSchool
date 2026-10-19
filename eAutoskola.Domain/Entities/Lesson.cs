@@ -34,6 +34,12 @@ public class Lesson
 
     public LessonStatus Status { get; set; } = LessonStatus.Pending;
 
+    /// <summary>The same status as a row of the RequestStatus reference table, so the database
+    /// itself guarantees a lesson only ever has a defined status. <see cref="Status"/> stays the
+    /// value the state machine and every query work with; LessonCommandService sets both together.</summary>
+    public int RequestStatusId { get; set; }
+    public RequestStatus? RequestStatus { get; set; }
+
     /// <summary>Required when an Instructor rejects a Pending lesson or anyone cancels a
     /// Confirmed lesson.</summary>
     public string? RejectionReason { get; set; }

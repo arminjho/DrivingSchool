@@ -296,6 +296,9 @@ namespace eAutoskola.Infrastructure.Database.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<int>("RequestStatusId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("StartedAt")
                         .HasColumnType("datetime2");
 
@@ -314,6 +317,8 @@ namespace eAutoskola.Infrastructure.Database.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DrivingZoneId");
+
+                    b.HasIndex("RequestStatusId");
 
                     b.HasIndex("StudentId");
 
@@ -662,10 +667,15 @@ namespace eAutoskola.Infrastructure.Database.Migrations
                     b.Property<DateTime>("RevokedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Jti")
                         .IsUnique();
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("RevokedTokens");
                 });
@@ -966,7 +976,10 @@ namespace eAutoskola.Infrastructure.Database.Migrations
                         .IsUnique()
                         .HasFilter("[IsDeleted] = 0");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", t =>
+                        {
+                            t.HasCheckConstraint("CK_Users_Role", "[Role] IN ('Admin', 'Instructor', 'Student')");
+                        });
                 });
 
             modelBuilder.Entity("eAutoskola.Domain.Entities.Vehicle", b =>
@@ -1228,6 +1241,12 @@ namespace eAutoskola.Infrastructure.Database.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("eAutoskola.Domain.Entities.RequestStatus", "RequestStatus")
+                        .WithMany()
+                        .HasForeignKey("RequestStatusId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("eAutoskola.Domain.Entities.User", "Student")
                         .WithMany()
                         .HasForeignKey("StudentId")
@@ -1242,6 +1261,8 @@ namespace eAutoskola.Infrastructure.Database.Migrations
                     b.Navigation("DrivingZone");
 
                     b.Navigation("Instructor");
+
+                    b.Navigation("RequestStatus");
 
                     b.Navigation("Student");
 
@@ -1347,6 +1368,17 @@ namespace eAutoskola.Infrastructure.Database.Migrations
                         .IsRequired();
 
                     b.Navigation("Payment");
+                });
+
+            modelBuilder.Entity("eAutoskola.Domain.Entities.RevokedToken", b =>
+                {
+                    b.HasOne("eAutoskola.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("eAutoskola.Domain.Entities.StudentProfile", b =>

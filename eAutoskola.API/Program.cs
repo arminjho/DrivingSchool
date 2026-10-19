@@ -3,7 +3,8 @@ using System.Text;
 using DotNetEnv;
 using eAutoskola.API.Filters;
 using eAutoskola.API.Hubs;
-using eAutoskola.Application.Common;
+using eAutoskola.API.Json;
+using eAutoskola.Application.Recommendations;
 using eAutoskola.Application.ReferenceData.Cities;
 using eAutoskola.Application.ReferenceData.Countries;
 using eAutoskola.Application.ReferenceData.DrivingZones;
@@ -22,6 +23,7 @@ using Mapster;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -50,8 +52,12 @@ builder.Services.AddSingleton(new PayPalOptions());
 builder.Services.AddSingleton(corsOptions);
 
 // --- Database ---
+// EF warns at startup that User/Vehicle have a soft-delete query filter and are the required end of
+// 11 relationships. That is a model-level check; each relationship was reviewed and the one
+// reachable case is handled with IgnoreQueryFilters (docs/BACKLOG.md), so the warning is silenced.
 builder.Services.AddDbContext<EAutoskolaDbContext>(options =>
-    options.UseSqlServer(databaseOptions.ConnectionString));
+    options.UseSqlServer(databaseOptions.ConnectionString)
+        .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning)));
 
 // --- Mapster (entity <-> DTO mapping) ---
 var mapperConfig = TypeAdapterConfig.GlobalSettings;
@@ -78,6 +84,7 @@ builder.Services.AddScoped<eAutoskola.Application.Auth.IAuthService, eAutoskola.
 
 // --- File storage ---
 builder.Services.AddSingleton<eAutoskola.Domain.Files.IFileStorageService, eAutoskola.Infrastructure.Files.FileStorageService>();
+builder.Services.AddScoped<eAutoskola.Application.Files.FileAccessService>();
 
 // --- Reference-data services ---
 builder.Services.AddCountryServices();
@@ -111,10 +118,12 @@ builder.Services.AddScoped<eAutoskola.Application.Reports.DashboardService>();
 builder.Services.AddScoped<eAutoskola.Application.Reports.ReportService>();
 
 // --- SignalR (NotificationHub) ---
-builder.Services.AddSignalR();
+builder.Services.AddSignalR()
+    .AddJsonProtocol(options => options.PayloadSerializerOptions.Converters.Add(new UtcDateTimeJsonConverter()));
 
 // --- Controllers + global exception filter ---
-builder.Services.AddControllers(options => options.Filters.Add<ExceptionFilter>());
+builder.Services.AddControllers(options => options.Filters.Add<ExceptionFilter>())
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new UtcDateTimeJsonConverter()));
 
 // --- CORS (registered exactly once, explicit origins only) ---
 builder.Services.AddCors(options =>
@@ -206,7 +215,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Unesite JWT token u formatu: Bearer {token}",
+        Description = "Enter the JWT as: Bearer {token}",
     });
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
@@ -256,8 +265,7 @@ static async Task MigrateAndSeedDatabaseAsync(WebApplication app)
     {
         try
         {
-            await context.Database.MigrateAsync();
-            await DbSeeder.SeedAsync(context);
+            await MigrateAndSeedAsync(context);
             logger.LogInformation("Database migrated and seeded successfully");
             return;
         }
@@ -270,6 +278,12 @@ static async Task MigrateAndSeedDatabaseAsync(WebApplication app)
     }
 
     // Final attempt - let it throw and fail startup loudly if the DB is truly unreachable.
+    await MigrateAndSeedAsync(context);
+}
+
+static async Task MigrateAndSeedAsync(EAutoskolaDbContext context)
+{
     await context.Database.MigrateAsync();
     await DbSeeder.SeedAsync(context);
+    await RecommendationLogSeeder.SeedAsync(context);
 }

@@ -11,6 +11,9 @@ class AppListCard extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget? trailing;
+
+  /// Full-width row under the content, e.g. an explicit "Pogledaj detalje" action.
+  final Widget? footer;
   final VoidCallback? onTap;
 
   const AppListCard({
@@ -19,6 +22,7 @@ class AppListCard extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.trailing,
+    this.footer,
     this.onTap,
   });
 
@@ -29,33 +33,40 @@ class AppListCard extends StatelessWidget {
     return AppCard(
       padding: const EdgeInsets.all(AppSpacing.md),
       onTap: onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: AppSizes.listCardMinHeight - AppSpacing.md * 2),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            if (leading != null) ...[leading!, const SizedBox(width: AppSpacing.sm)],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(title, style: context.text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      style: context.text.bodySmall?.copyWith(color: c.textSecondary),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: AppSizes.listCardMinHeight - AppSpacing.md * 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (leading != null) ...[leading!, const SizedBox(width: AppSpacing.sm)],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(title, style: context.text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          style: context.text.bodySmall?.copyWith(color: c.textSecondary),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (trailing != null) ...[const SizedBox(width: AppSpacing.sm), trailing!],
+              ],
             ),
-            if (trailing != null) ...[const SizedBox(width: AppSpacing.sm), trailing!],
-          ],
-        ),
+          ),
+          if (footer != null) ...[const SizedBox(height: AppSpacing.sm), footer!],
+        ],
       ),
     );
   }

@@ -8,9 +8,10 @@ import 'driving_zone_tab.dart';
 import 'question_area_tab.dart';
 import 'request_status_tab.dart';
 import 'service_type_tab.dart';
+import 'vehicle_service_type_tab.dart';
 import 'vehicle_category_tab.dart';
 
-/// 4.1.5 - one screen, seven tabs: the shared "šifarnik" (reference-data) CRUD shape repeated
+/// 4.1.5 - one screen, eight tabs: the shared "šifarnik" (reference-data) CRUD shape repeated
 /// once per entity, so admins manage every static lookup table from one place.
 class ReferenceDataScreen extends StatefulWidget {
   const ReferenceDataScreen({super.key});
@@ -25,7 +26,7 @@ class _ReferenceDataScreenState extends State<ReferenceDataScreen> with SingleTi
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this);
+    _tabController = TabController(length: 8, vsync: this);
   }
 
   @override
@@ -55,6 +56,7 @@ class _ReferenceDataScreenState extends State<ReferenceDataScreen> with SingleTi
               Tab(icon: Icon(AppIcons.price, size: 18), text: AppStrings.tabServiceTypes),
               Tab(icon: Icon(AppIcons.place, size: 18), text: AppStrings.tabDrivingZones),
               Tab(icon: Icon(Icons.quiz_outlined, size: 18), text: AppStrings.tabQuestionAreas),
+              Tab(icon: Icon(Icons.build_outlined, size: 18), text: AppStrings.tabVehicleServiceTypes),
             ],
           ),
         ),
@@ -71,6 +73,7 @@ class _ReferenceDataScreenState extends State<ReferenceDataScreen> with SingleTi
                 ServiceTypeTab(),
                 DrivingZoneTab(),
                 QuestionAreaTab(),
+                VehicleServiceTypeTab(),
               ],
             ),
           ),

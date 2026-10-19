@@ -1,5 +1,9 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'package:provider/provider.dart';
+
+import '../../core/api_config.dart';
+import '../../core/auth_session.dart';
 import '../../core/design_tokens.dart';
 
 /// A semantic tone, not a colour: callers say what a thing *means* and the token layer decides
@@ -96,7 +100,11 @@ class AppAvatar extends StatelessWidget {
   final String name;
   final double size;
 
-  const AppAvatar({super.key, required this.name, this.size = 34});
+  /// A stored photo (`GET /api/files?path=`); the initials stay as the placeholder while it loads
+  /// and when the person has no photo or it cannot be loaded.
+  final String? imagePath;
+
+  const AppAvatar({super.key, required this.name, this.size = 34, this.imagePath});
 
   static String initials(String value) {
     final parts = value.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
@@ -109,7 +117,7 @@ class AppAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _palette[name.hashCode.abs() % _palette.length];
 
-    return Container(
+    final initialsTile = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
@@ -121,6 +129,26 @@ class AppAvatar extends StatelessWidget {
       child: Text(
         initials(name),
         style: context.text.labelMedium?.copyWith(color: color, fontSize: size * 0.36, height: 1.1),
+      ),
+    );
+
+    final path = imagePath;
+    if (path == null) return initialsTile;
+
+    final token = context.read<AuthSession>().token;
+    return ClipRRect(
+      borderRadius: AppRadius.all(size / 3.2),
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Image.network(
+          ApiConfig.uri('api/files', {'path': path}).toString(),
+          headers: {if (token != null) 'Authorization': 'Bearer $token'},
+          fit: BoxFit.cover,
+          cacheWidth: (size * 2).round(),
+          errorBuilder: (context, error, stackTrace) => initialsTile,
+          loadingBuilder: (context, child, progress) => progress == null ? child : initialsTile,
+        ),
       ),
     );
   }

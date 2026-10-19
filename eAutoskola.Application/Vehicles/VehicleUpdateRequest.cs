@@ -7,4 +7,7 @@ public class VehicleUpdateRequest
     public required string Model { get; set; }
     public int VehicleCategoryId { get; set; }
     public int ManufactureYear { get; set; }
+
+    /// <summary>Path returned by POST /api/files/upload; null leaves the vehicle without a photo.</summary>
+    public string? ImagePath { get; set; }
 }

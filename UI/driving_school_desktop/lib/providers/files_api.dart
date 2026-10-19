@@ -29,7 +29,4 @@ class FilesApi {
     final body = jsonDecode(utf8.decode(streamed.bodyBytes)) as Map<String, dynamic>;
     return body['path'] as String;
   }
-
-  /// The URL a signed-in client loads an uploaded image from (`FilesController`, `[Authorize]`).
-  static Uri urlFor(String relativePath) => ApiConfig.uri('api/files', {'path': relativePath});
 }

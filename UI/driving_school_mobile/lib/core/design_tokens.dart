@@ -15,7 +15,6 @@ abstract final class AppSpacing {
   static const double md = 16;
   static const double lg = 24;
   static const double xl = 32;
-  static const double xxl = 48;
 
   static const EdgeInsets page = EdgeInsets.symmetric(horizontal: md, vertical: lg);
 }
@@ -30,14 +29,7 @@ abstract final class AppRadius {
   static BorderRadius all(double radius) => BorderRadius.circular(radius);
 }
 
-abstract final class AppDuration {
-  static const Duration fast = Duration(milliseconds: 120);
-  static const Duration normal = Duration(milliseconds: 200);
-  static const Curve curve = Curves.easeOutCubic;
-}
-
 abstract final class AppSizes {
-  static const double appBarHeight = 56;
   static const double bottomNavHeight = 64;
   static const double controlHeight = 46;
   static const double controlHeightSm = 36;

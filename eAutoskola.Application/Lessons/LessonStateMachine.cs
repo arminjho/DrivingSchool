@@ -1,5 +1,6 @@
 using eAutoskola.Domain.Enums;
 using eAutoskola.Domain.Exceptions;
+using eAutoskola.Domain.Resources;
 
 namespace eAutoskola.Application.Lessons;
 
@@ -31,7 +32,7 @@ public static class LessonStateMachine
     {
         if (!AllowedTransitions.TryGetValue(from, out var allowed) || !allowed.Contains(to))
         {
-            throw new BusinessException($"Prelaz iz stanja '{from}' u stanje '{to}' nije dozvoljen.");
+            throw new BusinessException(string.Format(Messages.LessonTransitionNotAllowed, from, to));
         }
     }
 }

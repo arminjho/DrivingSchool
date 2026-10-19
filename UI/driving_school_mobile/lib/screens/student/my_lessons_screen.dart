@@ -6,6 +6,7 @@ import '../../core/design_tokens.dart';
 import '../../core/formatters.dart';
 import '../../core/paged_controller.dart';
 import '../../l10n/app_strings.dart';
+import '../../layouts/shell_scope.dart';
 import '../../models/lesson.dart';
 import '../../providers/lesson_provider.dart';
 import '../../widgets/ui/app_list_card.dart';
@@ -34,7 +35,7 @@ class _MyLessonsScreenState extends State<MyLessonsScreen> with SingleTickerProv
     _tabController = TabController(length: 3, vsync: this);
     _controllers = [
       for (final tab in const ['active', 'completed', 'cancelled'])
-        PagedController<Lesson>(fetch: _provider.getPaged, accumulate: true, filters: {'tab': tab}),
+        PagedController<Lesson>(fetch: _provider.getMy, filters: {'tab': tab}),
     ];
     for (final controller in _controllers) {
       controller.load();
@@ -59,20 +60,27 @@ class _MyLessonsScreenState extends State<MyLessonsScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    final inShell = ShellScope.isInside(context);
+    final tabBar = TabBar(
+      controller: _tabController,
+      tabs: const [Tab(text: AppStrings.tabActive), Tab(text: AppStrings.tabCompleted), Tab(text: AppStrings.tabCancelled)],
+    );
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(AppStrings.myLessonsTitle),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [Tab(text: AppStrings.tabActive), Tab(text: AppStrings.tabCompleted), Tab(text: AppStrings.tabCancelled)],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
+      appBar: inShell ? null : AppBar(title: const Text(AppStrings.myLessonsTitle), bottom: tabBar),
+      body: Column(
         children: [
-          _tabView(_controllers[0], AppStrings.noActiveLessons),
-          _tabView(_controllers[1], AppStrings.noCompletedLessons),
-          _tabView(_controllers[2], AppStrings.noCancelledLessons),
+          if (inShell) tabBar,
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _tabView(_controllers[0], AppStrings.noActiveLessons),
+                _tabView(_controllers[1], AppStrings.noCompletedLessons),
+                _tabView(_controllers[2], AppStrings.noCancelledLessons),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -86,9 +94,10 @@ class _MyLessonsScreenState extends State<MyLessonsScreen> with SingleTickerProv
       emptyMessage: emptyMessage,
       itemBuilder: (context, lesson) => AppListCard(
         leading: Icon(AppIcons.date, color: context.colors.textMuted),
-        title: AppFormat.dateTime(lesson.startsAtUtc),
-        subtitle: '${lesson.instructorFullName} · ${lesson.drivingZoneName}',
+        title: AppFormat.dateTimeRange(lesson.startsAtUtc, lesson.endsAtUtc),
+        subtitle: '${lesson.instructorFullName} · ${lesson.drivingZoneName} · ${lesson.vehicleName ?? AppStrings.noVehicleAssignedYet}',
         trailing: LessonStatusBadge(status: lesson.status),
+        footer: OutlinedButton(onPressed: () => _openDetails(lesson), child: const Text(AppStrings.viewDetails)),
         onTap: () => _openDetails(lesson),
       ),
     );

@@ -7,6 +7,7 @@ public class StudentSummaryDto
     public string FullName { get; set; } = string.Empty;
     public required string Email { get; set; }
     public required string PhoneNumber { get; set; }
+    public string? ProfileImagePath { get; set; }
     public int VehicleCategoryId { get; set; }
     public string VehicleCategoryName { get; set; } = string.Empty;
     public int TotalLessons { get; set; }

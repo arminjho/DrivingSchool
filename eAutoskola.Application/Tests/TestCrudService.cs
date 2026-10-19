@@ -1,6 +1,7 @@
 using eAutoskola.Application.Common;
 using eAutoskola.Domain.Entities;
 using eAutoskola.Domain.Exceptions;
+using eAutoskola.Domain.Resources;
 using eAutoskola.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,7 +35,7 @@ public class TestCrudService : BaseCRUDService<TestDto, TestSearchObject, TestRe
     {
         if (await Context.TestAttempts.AnyAsync(a => a.TestId == entity.Id, cancellationToken))
         {
-            throw new BusinessException("Test se ne može obrisati jer postoje evidentirani pokušaji rješavanja.");
+            throw new BusinessException(Messages.TestHasAttempts);
         }
     }
 }

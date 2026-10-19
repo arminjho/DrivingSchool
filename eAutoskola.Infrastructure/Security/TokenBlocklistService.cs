@@ -39,12 +39,12 @@ public class TokenBlocklistService : ITokenBlocklistService
         return isRevoked;
     }
 
-    public async Task RevokeAsync(string jti, DateTime expiresAtUtc, CancellationToken cancellationToken)
+    public async Task RevokeAsync(int userId, string jti, DateTime expiresAtUtc, CancellationToken cancellationToken)
     {
         var alreadyRevoked = await _context.RevokedTokens.AnyAsync(rt => rt.Jti == jti, cancellationToken);
         if (!alreadyRevoked)
         {
-            _context.RevokedTokens.Add(new RevokedToken { Jti = jti, ExpiresAtUtc = expiresAtUtc });
+            _context.RevokedTokens.Add(new RevokedToken { UserId = userId, Jti = jti, ExpiresAtUtc = expiresAtUtc });
             await _context.SaveChangesAsync(cancellationToken);
         }
 
@@ -69,15 +69,22 @@ public class TokenBlocklistService : ITokenBlocklistService
         return validFrom;
     }
 
-    public async Task InvalidateTokensValidFromAsync(int userId, CancellationToken cancellationToken)
+    public async Task StageTokenInvalidationAsync(int userId, CancellationToken cancellationToken)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
-        if (user is not null)
+        if (user is null)
         {
-            user.TokensValidFromUtc = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            return;
         }
 
-        _cache.Remove($"jwt:validfrom:{userId}");
+        // Whole seconds, like the token's iat claim: a token issued in the same second as the
+        // change (e.g. the login that follows a password reset) must stay valid.
+        var now = DateTime.UtcNow;
+        var validFromUtc = new DateTime(now.Ticks - now.Ticks % TimeSpan.TicksPerSecond, DateTimeKind.Utc);
+        user.TokensValidFromUtc = validFromUtc;
+
+        // Cache the new cutoff right away so the very next request already applies it, instead of
+        // evicting the entry and letting a concurrent request re-cache the old value.
+        _cache.Set($"jwt:validfrom:{userId}", (DateTime?)validFromUtc, NegativeTtl);
     }
 }

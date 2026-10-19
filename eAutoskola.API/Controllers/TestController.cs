@@ -1,3 +1,4 @@
+using eAutoskola.Application.Common;
 using eAutoskola.Application.Tests;
 using eAutoskola.Domain.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace eAutoskola.API.Controllers;
 
+[Route("api/tests")]
 public class TestController : BaseCRUDController<TestDto, TestSearchObject, TestRequest, TestRequest>
 {
     private readonly TestAttemptService _attemptService;
@@ -16,8 +18,8 @@ public class TestController : BaseCRUDController<TestDto, TestSearchObject, Test
 
     [HttpGet("my")]
     [Authorize(Roles = Role.Student)]
-    public async Task<ActionResult<List<TestSummaryDto>>> GetMy(CancellationToken cancellationToken)
-        => Ok(await _attemptService.GetMyTestsAsync(cancellationToken));
+    public async Task<ActionResult<PagedResult<TestSummaryDto>>> GetMy([FromQuery] PageQuery criteria, CancellationToken cancellationToken)
+        => Ok(await _attemptService.GetMyTestsAsync(criteria, cancellationToken));
 
     [HttpPost("{id:int}/attempts")]
     [Authorize(Roles = Role.Student)]

@@ -1,5 +1,5 @@
 name: driving_school_mobile
-description: "A new Flutter project."
+description: "eAutoskola - mobile application for driving school students and instructors (Android)."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -38,12 +38,7 @@ dependencies:
   material_ui: ^1.7.0
   provider: ^6.1.5+1
   signalr_netcore: ^1.4.4
-  url_launcher: ^6.3.1
   webview_flutter: ^4.14.1
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:

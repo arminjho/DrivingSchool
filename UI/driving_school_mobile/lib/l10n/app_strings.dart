@@ -22,18 +22,22 @@ abstract final class AppStrings {
   static const String logout = 'Odjava';
 
   // --- Auth ---
-  static const String loginSubtitle = 'Aplikacija za učenike i instruktore autoškole';
+  static const String loginSubtitle =
+      'Aplikacija za učenike i instruktore autoškole';
   static const String loginAction = 'Prijavi se';
   static const String usernameLabel = 'Korisničko ime ili e-mail';
   static const String passwordLabel = 'Lozinka';
   static const String showPassword = 'Prikaži lozinku';
   static const String hidePassword = 'Sakrij lozinku';
-  static const String roleNotAllowed = 'Mobilna aplikacija je namijenjena učenicima i instruktorima autoškole.';
-  static const String loginFailed = 'Prijava nije uspjela. Provjerite korisničko ime i lozinku.';
+  static const String roleNotAllowed =
+      'Mobilna aplikacija je namijenjena učenicima i instruktorima autoškole.';
+  static const String loginFailed =
+      'Prijava nije uspjela. Provjerite korisničko ime i lozinku.';
 
   // --- Shell ---
   static const String notificationsTitle = 'Obavijesti';
-  static const String notificationsSubtitle = 'Sistemske obavijesti o vašem nalogu';
+  static const String notificationsSubtitle =
+      'Sistemske obavijesti o vašem nalogu';
   static String welcome(String name) => 'Dobrodošli, $name';
 
   // --- Bottom nav (Student) ---
@@ -53,18 +57,23 @@ abstract final class AppStrings {
   static const String registerAction = 'Registruj se';
   static const String haveAccount = 'Već imate račun? Prijavite se';
   static const String noAccount = 'Nemate račun? Registrujte se';
-  static String registerSuccess(String name) => 'Dobrodošli, $name! Vaš račun je kreiran.';
+  static String registerSuccess(String name) =>
+      'Dobrodošli, $name! Vaš račun je kreiran.';
 
   // --- Forgot / reset password ---
   static const String forgotPasswordTitle = 'Zaboravljena lozinka';
-  static const String forgotPasswordSubtitle = 'Unesite e-mail adresu i poslaćemo vam kod za resetovanje lozinke.';
+  static const String forgotPasswordSubtitle =
+      'Unesite e-mail adresu i poslaćemo vam kod za resetovanje lozinke.';
   static const String forgotPasswordAction = 'Pošalji kod';
   static const String forgotPasswordLink = 'Zaboravili ste lozinku?';
-  static const String forgotPasswordSent = 'Ako nalog postoji, kod za resetovanje je poslan na e-mail.';
+  static const String forgotPasswordSent =
+      'Ako nalog postoji, kod za resetovanje je poslan na e-mail.';
   static const String resetPasswordTitle = 'Resetovanje lozinke';
-  static const String resetPasswordSubtitle = 'Unesite kod koji ste primili na e-mail i novu lozinku.';
+  static const String resetPasswordSubtitle =
+      'Unesite kod koji ste primili na e-mail i novu lozinku.';
   static const String resetPasswordAction = 'Resetuj lozinku';
-  static const String resetPasswordSuccess = 'Lozinka je uspješno resetovana. Prijavite se.';
+  static const String resetPasswordSuccess =
+      'Lozinka je uspješno resetovana. Prijavite se.';
   static const String fieldResetCode = 'Kod za resetovanje';
 
   // --- Student home (4.2.1) ---
@@ -86,7 +95,8 @@ abstract final class AppStrings {
 
   // --- Booking (4.2.2) ---
   static const String bookLessonTitle = 'Zakazivanje časa';
-  static const String bookLessonSubtitle = 'Ispunite formu za zakazivanje vožnje';
+  static const String bookLessonSubtitle =
+      'Ispunite formu za zakazivanje vožnje';
   static const String fieldInstructor = 'Instruktor';
   static const String fieldBookingDate = 'Datum';
   static const String fieldSlot = 'Termin';
@@ -94,7 +104,8 @@ abstract final class AppStrings {
   static const String fieldNote = 'Napomena';
   static const String noteHint = 'npr. Ako može parking da vježbamo';
   static const String sendRequest = 'Pošalji zahtjev';
-  static const String noSlotsForDate = 'Nema slobodnih termina za odabrani datum.';
+  static const String noSlotsForDate =
+      'Nema slobodnih termina za odabrani datum.';
   static const String selectInstructorFirst = 'Prvo odaberite instruktora.';
   static const String bookingSuccess = 'Zahtjev za čas je poslan.';
 
@@ -120,11 +131,14 @@ abstract final class AppStrings {
   static const String infoRating = 'Ocjena';
   static const String cancelRequestAction = 'Otkaži zahtjev';
   static const String rescheduleAction = 'Izmijeni termin';
-  static const String cancelNotAllowedCompleted = 'Završen čas se ne može otkazati.';
+  static const String cancelNotAllowedCompleted =
+      'Završen čas se ne može otkazati.';
   static const String cancelNotAllowedCancelled = 'Čas je već otkazan.';
-  static const String cancelNotAllowedCutoff = 'Otkazivanje je moguće najkasnije 24 sata prije termina.';
+  static const String cancelNotAllowedCutoff =
+      'Otkazivanje je moguće najkasnije 24 sata prije termina.';
   static const String lessonCancelledMessage = 'Čas je otkazan.';
-  static String confirmCancelLessonMessage(String when) => 'Da li ste sigurni da želite otkazati čas zakazan za $when?';
+  static String confirmCancelLessonMessage(String when) =>
+      'Da li ste sigurni da želite otkazati čas zakazan za $when?';
   static String durationMinutes(int minutes) => '$minutes min';
   static const String rescheduleSuccess = 'Termin je izmijenjen.';
   static const String noVehicleAssignedYet = 'Vozilo još nije dodijeljeno.';
@@ -135,18 +149,23 @@ abstract final class AppStrings {
   static const String testPassed = 'Položen';
   static const String testFailed = 'Nije položen';
   static const String testNotAttempted = 'Nije riješeno';
-  static String testScoreLine(int correct, int total) => '$correct/$total tačnih · $total pitanja';
+  static String testScoreLine(int correct, int total) =>
+      '$correct/$total tačnih · $total pitanja';
 
   // --- Question (4.2.6) ---
-  static String questionProgress(int current, int total) => 'Pitanje $current / $total';
+  static String questionProgress(int current, int total) =>
+      'Pitanje $current / $total';
   static const String signImagePlaceholder = 'Slika znaka';
   static const String previousQuestion = 'Prethodno';
   static const String nextQuestion = 'Sljedeće';
   static const String submitTest = 'Pošalji test';
   static const String confirmSubmitTitle = 'Predaja testa';
-  static const String confirmSubmitMessage = 'Da li ste sigurni da želite predati test? Odgovori se poslije ne mogu mijenjati.';
+  static const String confirmSubmitMessage =
+      'Da li ste sigurni da želite predati test? Odgovori se poslije ne mogu mijenjati.';
   static const String confirmSubmitAction = 'Predaj test';
-  static String unansweredWarning(int count) => count == 1 ? 'Imate 1 neodgovoreno pitanje.' : 'Imate $count neodgovorenih pitanja.';
+  static String unansweredWarning(int count) => count == 1
+      ? 'Imate 1 neodgovoreno pitanje.'
+      : 'Imate $count neodgovorenih pitanja.';
 
   // --- Test result (4.2.7) ---
   static const String testResultTitle = 'Rezultat testa';
@@ -165,16 +184,20 @@ abstract final class AppStrings {
   // --- Recommendations (4.2.8) ---
   static const String recommendationsTitle = 'Preporuke';
   static const String recommenderCardTitle = 'Preporuka AI asistenta';
-  static const String recommendedLessonsTitle = 'Preporučene lekcije za čitanje:';
-  static const String recommendationsEmpty = 'Trenutno nemamo preporuka za vas.';
-  static const String recommendationsEmptyHint = 'Riješite nekoliko probnih testova da bismo mogli prilagoditi preporuke.';
+  static const String recommendedLessonsTitle =
+      'Preporučene lekcije za čitanje:';
+  static const String recommendationsEmpty =
+      'Trenutno nemamo preporuka za vas.';
+  static const String recommendationsEmptyHint =
+      'Riješite nekoliko probnih testova da bismo mogli prilagoditi preporuke.';
   static String readingMinutesLabel(int minutes) => '$minutes min čitanja';
 
   // --- Study lessons (4.2.9) ---
   static const String studyTitle = 'Učenje';
   static const String tabAllLessons = 'Sve lekcije';
   static const String tabMyLessons = 'Moje lekcije';
-  static String subLessonCount(int count) => count == 1 ? '1 pod-lekcija' : '$count pod-lekcija';
+  static String subLessonCount(int count) =>
+      count == 1 ? '1 pod-lekcija' : '$count pod-lekcija';
   static const String noStudyLessons = 'Nema dostupnih lekcija.';
   static const String noMyStudyLessons = 'Još nemate otvorenih lekcija.';
 
@@ -189,14 +212,17 @@ abstract final class AppStrings {
   static const String paymentHistoryEmpty = 'Još nema uplata.';
   static const String amountToPay = 'Iznos za plaćanje';
   static const String payWithPayPal = '⚡ Plaćanje putem PayPal-a';
-  static const String paypalSecureNote = '🔒 Sigurno plaćanje putem PayPal Sandbox servisa';
+  static const String paypalSecureNote =
+      '🔒 Sigurno plaćanje putem PayPal Sandbox servisa';
   static const String confirmPaymentTitle = 'Potvrda plaćanja';
   static String paymentAmountLine(String amount) => '$amountToPay — $amount';
   static const String paymentSuccess = 'Uplata je uspješno izvršena.';
   static const String paymentCancelledMessage = 'Plaćanje je otkazano.';
-  static const String paymentFailed = 'Plaćanje nije odobreno na PayPal-u. Pokušajte ponovo.';
+  static const String paymentFailed =
+      'Plaćanje nije odobreno na PayPal-u. Pokušajte ponovo.';
   static const String paymentUnavailableTitle = 'Plaćanje nije dostupno';
-  static const String paymentUnavailableMessage = 'Plaćanje putem PayPal-a radi u Android aplikaciji.';
+  static const String paymentUnavailableMessage =
+      'Plaćanje putem PayPal-a radi u Android aplikaciji.';
   static const String refundLabel = 'Povrat';
 
   // --- Profile (4.2.11) ---
@@ -221,12 +247,15 @@ abstract final class AppStrings {
   // --- Instructor home (4.3.1) ---
   static String instructorGreeting(String name) => 'Dobro jutro, $name';
   static const String todayCardTitle = 'Danas';
-  static String lessonCountToday(int count) => count == 1 ? '1 zakazan čas' : '$count zakazanih časova';
+  static String lessonCountToday(int count) =>
+      count == 1 ? '1 zakazan čas' : '$count zakazanih časova';
   static const String viewScheduleAction = 'Pogledaj raspored';
-  static String newRequestsBadge(int count) => count == 1 ? '1 novi zahtjev' : '$count novih zahtjeva';
+  static String newRequestsBadge(int count) =>
+      count == 1 ? '1 novi zahtjev' : '$count novih zahtjeva';
   static const String menuLessonRequests = 'Zahtjevi za časove';
   static const String menuMySchedule = 'Moj raspored';
   static const String menuMyStudents = 'Moji učenici';
+  static const String menuReports = 'Izvještaji';
   static const String todaysLessonsTitle = 'Sljedeći časovi danas';
   static const String noLessonsToday = 'Nemate zakazanih časova danas.';
   static const String statCompletedThisMonth = 'Ovaj mjesec';
@@ -261,11 +290,31 @@ abstract final class AppStrings {
   static const String finishLessonAction = 'Završi čas';
   static const String lessonStartedMessage = 'Čas je započet.';
   static const String noLessonsForDate = 'Nemate časova za odabrani dan.';
-  static const List<String> dayAbbreviations = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'];
-  static const List<String> monthNames = [
-    'Januar', 'Februar', 'Mart', 'April', 'Maj', 'Juni', 'Juli', 'August', 'Septembar', 'Oktobar', 'Novembar', 'Decembar',
+  static const List<String> dayAbbreviations = [
+    'Pon',
+    'Uto',
+    'Sri',
+    'Čet',
+    'Pet',
+    'Sub',
+    'Ned',
   ];
-  static String monthYear(int month, int year) => '${monthNames[month - 1]} $year';
+  static const List<String> monthNames = [
+    'Januar',
+    'Februar',
+    'Mart',
+    'April',
+    'Maj',
+    'Juni',
+    'Juli',
+    'August',
+    'Septembar',
+    'Oktobar',
+    'Novembar',
+    'Decembar',
+  ];
+  static String monthYear(int month, int year) =>
+      '${monthNames[month - 1]} $year';
   static const String lessonFinishedLabel = 'Čas završen';
 
   // --- Lesson completion & grading (4.3.5) ---
@@ -273,33 +322,46 @@ abstract final class AppStrings {
   static const String ratingLabel = 'Ocjena učenika';
   static const String ratingHint = 'Kliknite za ocjenu';
   static const String fieldInstructorNotes = 'Bilješke o času';
-  static const String instructorNotesHint = 'Upišite bilješke o napretku učenika, greškama, itd...';
+  static const String instructorNotesHint =
+      'Upišite bilješke o napretku učenika, greškama, itd...';
   static const String lessonCompletedMessage = 'Čas je završen.';
   static const String ratingRequired = 'Odaberite ocjenu od 1 do 5 zvjezdica.';
+  static const String instructorNotesRequired = 'Bilješke o času su obavezne.';
   static const String fieldLessonStatus = 'Status časa';
   static const String lessonCompletedStatusValue = 'Završen — Čas odrađen';
 
   // --- My students ---
   static const String myStudentsTitle = 'Moji učenici';
   static const String noStudents = 'Još nemate dodijeljenih učenika.';
-  static String totalLessonsLabel(int count) => count == 1 ? '1 odrađen čas' : '$count odrađenih časova';
+  static String totalLessonsLabel(int count) =>
+      count == 1 ? '1 odrađen čas' : '$count odrađenih časova';
+
+  // --- Reports (4.3.1 "Izvještaji") ---
+  static const String reportsTitle = 'Izvještaji';
+  static const String reportsSubtitle = 'Mjesečna statistika odrađenih časova';
 
   // --- Notifications ---
   static const String notificationsEmpty = 'Nemate obavijesti.';
-  static const String notificationsEmptyHint = 'Nove obavijesti će se pojaviti ovdje čim stignu.';
+  static const String notificationsEmptyHint =
+      'Nove obavijesti će se pojaviti ovdje čim stignu.';
   static const String notificationsLoadFailed = 'Obavijesti nisu učitane';
   static const String markAllRead = 'Označi sve kao pročitano';
   static const String markAsRead = 'Označi kao pročitano';
   static const String markReadFailed = 'Obavijest nije označena kao pročitana.';
-  static const String markAllReadFailed = 'Obavijesti nisu označene kao pročitane.';
-  static String notificationsUnread(int count) => count == 1 ? '1 nepročitana obavijest' : '$count nepročitanih obavijesti';
-  static String notificationsStale(String cause) => 'Lista možda nije najnovija. $cause';
+  static const String markAllReadFailed =
+      'Obavijesti nisu označene kao pročitane.';
+  static String notificationsUnread(int count) =>
+      count == 1 ? '1 nepročitana obavijest' : '$count nepročitanih obavijesti';
+  static String notificationsStale(String cause) =>
+      'Lista možda nije najnovija. $cause';
 
   // --- States ---
   static const String loadFailedTitle = 'Podaci nisu učitani';
   static const String emptyTitle = 'Nema zapisa';
-  static const String emptyMessage = 'Kada dodate prvi zapis, pojavit će se ovdje.';
-  static String emptyForSearch(String query) => 'Nijedan zapis ne odgovara pretrazi „$query”.';
+  static const String emptyMessage =
+      'Kada dodate prvi zapis, pojavit će se ovdje.';
+  static String emptyForSearch(String query) =>
+      'Nijedan zapis ne odgovara pretrazi „$query”.';
 
   // --- Lists ---
   static const String noResults = 'Nema rezultata';
@@ -308,7 +370,8 @@ abstract final class AppStrings {
   static const String dropdownSelect = 'Odaberite…';
   static const String dropdownLoading = 'Učitavanje…';
   static const String dropdownEmpty = 'Nema dostupnih stavki.';
-  static const String dropdownLoadFailed = 'Stavke nisu učitane. Pokušajte ponovo.';
+  static const String dropdownLoadFailed =
+      'Stavke nisu učitane. Pokušajte ponovo.';
   static const String pickDate = 'Odaberi datum';
   static const String pickTime = 'Odaberi vrijeme';
   static const String dateHint = 'DD.MM.GGGG.';
@@ -319,18 +382,27 @@ abstract final class AppStrings {
   // --- Validation (shown under the control; each states the expected format) ---
   static const String required = 'Ovo polje je obavezno.';
   static const String invalidEmail = 'Unesite e-mail u formatu ime@domena.com.';
-  static const String invalidPhone = 'Broj telefona mora biti u formatu +387 6X XXX XXX.';
+  static const String invalidPhone =
+      'Broj telefona mora biti u formatu +387 6X XXX XXX.';
   static const String phoneHint = '+387 6X XXX XXX';
-  static const String passwordTooShort = 'Lozinka mora imati najmanje 8 znakova.';
-  static const String passwordsDoNotMatch = 'Lozinka i potvrda lozinke se ne podudaraju.';
+  static const String passwordTooShort =
+      'Lozinka mora imati najmanje 8 znakova.';
+  static const String passwordsDoNotMatch =
+      'Lozinka i potvrda lozinke se ne podudaraju.';
   static const String invalidNumber = 'Unesite broj, npr. 120.50.';
-  static const String selectRequired = 'Odaberite jednu od ponuđenih vrijednosti.';
+  static const String selectRequired =
+      'Odaberite jednu od ponuđenih vrijednosti.';
   static const String dateRequired = 'Odaberite datum u formatu DD.MM.GGGG.';
-  static String maxLength(String label, int max) => '$label može imati najviše $max znakova.';
-  static String numberAtLeast(num min) => 'Vrijednost ne može biti manja od ${_plain(min)}.';
-  static String numberAtMost(num max) => 'Vrijednost ne može biti veća od ${_plain(max)}.';
-  static const String imageTypeInvalid = 'Dozvoljeni su samo fajlovi tipa JPG, PNG ili WEBP.';
-  static String imageTooLarge(int megabytes) => 'Fajl je prevelik. Maksimalna dozvoljena veličina je $megabytes MB.';
+  static String maxLength(String label, int max) =>
+      '$label može imati najviše $max znakova.';
+  static String numberAtLeast(num min) =>
+      'Vrijednost ne može biti manja od ${_plain(min)}.';
+  static String numberAtMost(num max) =>
+      'Vrijednost ne može biti veća od ${_plain(max)}.';
+  static const String imageTypeInvalid =
+      'Dozvoljeni su samo fajlovi tipa JPG, PNG ili WEBP.';
+  static String imageTooLarge(int megabytes) =>
+      'Fajl je prevelik. Maksimalna dozvoljena veličina je $megabytes MB.';
 
   // --- Lesson status ---
   static const String lessonPending = 'Na čekanju';
@@ -339,14 +411,20 @@ abstract final class AppStrings {
   static const String lessonCancelled = 'Otkazan';
 
   // --- Errors ---
-  static const String requestTimeout = 'Server ne odgovara. Provjerite internet konekciju i pokušajte ponovo.';
-  static const String serverUnreachable = 'Nije moguće povezati se sa serverom. Provjerite internet konekciju.';
-  static const String sessionExpired = 'Vaša prijava je istekla. Prijavite se ponovo da nastavite.';
-  static const String serverFailure = 'Došlo je do greške na serveru. Pokušajte ponovo za nekoliko trenutaka.';
+  static const String requestTimeout =
+      'Server ne odgovara. Provjerite internet konekciju i pokušajte ponovo.';
+  static const String serverUnreachable =
+      'Nije moguće povezati se sa serverom. Provjerite internet konekciju.';
+  static const String sessionExpired =
+      'Vaša prijava je istekla. Prijavite se ponovo da nastavite.';
+  static const String serverFailure =
+      'Došlo je do greške na serveru. Pokušajte ponovo za nekoliko trenutaka.';
   static const String cannotReachServer =
       'Ne možemo se povezati sa serverom. Provjerite da li je servis pokrenut, pa pokušajte ponovo.';
-  static String requestRejected(int statusCode) => 'Greška prilikom komunikacije sa serverom ($statusCode).';
+  static String requestRejected(int statusCode) =>
+      'Greška prilikom komunikacije sa serverom ($statusCode).';
 
   // 0 rather than 0.0 when a whole number is passed as a double.
-  static String _plain(num value) => value == value.roundToDouble() ? '${value.toInt()}' : '$value';
+  static String _plain(num value) =>
+      value == value.roundToDouble() ? '${value.toInt()}' : '$value';
 }

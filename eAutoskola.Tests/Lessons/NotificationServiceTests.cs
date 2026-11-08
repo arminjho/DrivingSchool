@@ -109,4 +109,37 @@ public class NotificationServiceTests
 
         await Assert.ThrowsAsync<ForbiddenException>(() => service.MarkReadAsync(id, default));
     }
+
+    /// <summary>GET /api/notifications/{id} must not let a signed-in user read someone else's
+    /// notification by guessing its id - GetByIdAsync (unlike GetPagedAsync) had no ownership
+    /// filter before this fix.</summary>
+    [Fact]
+    public async Task GetById_ReturnsNull_ForSomeoneElsesNotification()
+    {
+        var f = new PaymentTestFixture();
+        var service = Create(f);
+        service.Stage(PaymentTestFixture.OtherStudentId, "Tuđa notifikacija", "Tekst", NotificationType.LessonConfirmed);
+        await f.Context.SaveChangesAsync();
+        var id = (await f.Context.Notifications.SingleAsync()).Id;
+
+        // Default current user is StudentId - not the OtherStudentId this notification belongs to.
+        var result = await service.GetByIdAsync(id, default);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetById_ReturnsTheNotification_ForItsOwner()
+    {
+        var f = new PaymentTestFixture();
+        var service = Create(f);
+        service.Stage(PaymentTestFixture.StudentId, "Moja notifikacija", "Tekst", NotificationType.LessonConfirmed);
+        await f.Context.SaveChangesAsync();
+        var id = (await f.Context.Notifications.SingleAsync()).Id;
+
+        var result = await service.GetByIdAsync(id, default);
+
+        Assert.NotNull(result);
+        Assert.Equal("Moja notifikacija", result!.Title);
+    }
 }

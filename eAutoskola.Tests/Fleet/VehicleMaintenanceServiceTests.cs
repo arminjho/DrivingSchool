@@ -63,4 +63,99 @@ public class VehicleMaintenanceServiceTests
         await Assert.ThrowsAsync<ValidationException>(() => service.InsertAsync(
             new VehicleServiceInsertRequest { VehicleId = 99, VehicleServiceTypeId = 1, ServiceDate = DateTime.UtcNow, Description = "x", Cost = 1m }, default));
     }
+
+    /// <summary>Dorada #7: Status is derived from ALL of the vehicle's services - completing one
+    /// of two InProgress services must not put the vehicle back in use while the other is still
+    /// open.</summary>
+    [Fact]
+    public async Task Complete_OneOfTwoInProgressServices_KeepsTheVehicleInService()
+    {
+        var (service, context, record) = Create();
+        context.VehicleServices.Add(new VehicleService { Id = 2, VehicleId = 1, VehicleServiceTypeId = 1, ServiceDate = DateTime.UtcNow, Description = "Servis 2", Cost = 30m, Status = VehicleServiceStatus.InProgress });
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+        await service.UpdateAsync(record.Id, Update(VehicleServiceStatus.InProgress), default);
+        context.ChangeTracker.Clear();
+
+        await service.UpdateAsync(record.Id, Update(VehicleServiceStatus.Completed), default);
+
+        Assert.Equal(VehicleStatus.InService, (await context.Vehicles.AsNoTracking().SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task Complete_TheLastInProgressService_ReturnsTheVehicleToActive()
+    {
+        var (service, context, record) = Create();
+        context.VehicleServices.Add(new VehicleService { Id = 2, VehicleId = 1, VehicleServiceTypeId = 1, ServiceDate = DateTime.UtcNow, Description = "Servis 2", Cost = 30m, Status = VehicleServiceStatus.Completed });
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+        await service.UpdateAsync(record.Id, Update(VehicleServiceStatus.InProgress), default);
+        context.ChangeTracker.Clear();
+
+        await service.UpdateAsync(record.Id, Update(VehicleServiceStatus.Completed), default);
+
+        Assert.Equal(VehicleStatus.Active, (await context.Vehicles.AsNoTracking().SingleAsync()).Status);
+    }
+
+    /// <summary>The professor's exact complaint: deleting an InProgress service used to leave the
+    /// vehicle stuck InService forever, with no open service left to ever complete it.</summary>
+    [Fact]
+    public async Task Delete_TheOnlyInProgressService_ReturnsTheVehicleToActive()
+    {
+        var (service, context, record) = Create();
+        await service.UpdateAsync(record.Id, Update(VehicleServiceStatus.InProgress), default);
+        context.ChangeTracker.Clear();
+
+        await service.DeleteAsync(record.Id, default);
+
+        Assert.Equal(VehicleStatus.Active, (await context.Vehicles.AsNoTracking().SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task Delete_AnInProgressService_WithAnotherStillInProgress_KeepsTheVehicleInService()
+    {
+        var (service, context, record) = Create();
+        context.VehicleServices.Add(new VehicleService { Id = 2, VehicleId = 1, VehicleServiceTypeId = 1, ServiceDate = DateTime.UtcNow, Description = "Servis 2", Cost = 30m, Status = VehicleServiceStatus.InProgress });
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+        await service.UpdateAsync(record.Id, Update(VehicleServiceStatus.InProgress), default);
+        context.ChangeTracker.Clear();
+
+        await service.DeleteAsync(record.Id, default);
+
+        Assert.Equal(VehicleStatus.InService, (await context.Vehicles.AsNoTracking().SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task Delete_AScheduledOrCompletedService_NeverTouchesTheVehicle()
+    {
+        var (service, context, record) = Create();
+        (await context.Vehicles.SingleAsync()).Status = VehicleStatus.InService;
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        await service.DeleteAsync(record.Id, default); // still Scheduled
+
+        Assert.Equal(VehicleStatus.InService, (await context.Vehicles.AsNoTracking().SingleAsync()).Status);
+    }
+
+    // --- Dorada #10: VehicleServiceInsertRequest/UpdateRequest.Cost had no check ---
+
+    [Fact]
+    public async Task Insert_WithANegativeCost_IsRejected()
+    {
+        var (service, _, _) = Create();
+
+        await Assert.ThrowsAsync<ValidationException>(() => service.InsertAsync(
+            new VehicleServiceInsertRequest { VehicleId = 1, VehicleServiceTypeId = 1, ServiceDate = DateTime.UtcNow, Description = "Servis", Cost = -1m }, default));
+    }
+
+    [Fact]
+    public async Task Update_WithANegativeCost_IsRejected()
+    {
+        var (service, _, record) = Create();
+
+        await Assert.ThrowsAsync<ValidationException>(() => service.UpdateAsync(record.Id,
+            new VehicleServiceUpdateRequest { ServiceDate = DateTime.UtcNow, VehicleServiceTypeId = 1, Description = "Servis", Cost = -1m, Status = VehicleServiceStatus.Scheduled }, default));
+    }
 }

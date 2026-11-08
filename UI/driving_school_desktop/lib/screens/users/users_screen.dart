@@ -133,6 +133,7 @@ class _UsersScreenState extends State<UsersScreen> {
                           } else {
                             await _provider.update(initial.id, {
                               ...request,
+                              if (needsVehicleCategory) 'vehicleCategoryId': form.value['vehicleCategoryId'],
                               if (changePassword) 'newPassword': form.value['newPassword'],
                               if (changePassword) 'confirmNewPassword': form.value['confirmNewPassword'],
                             });

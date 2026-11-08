@@ -42,6 +42,13 @@ public class NotificationService : BaseQueryService<NotificationDto, Notificatio
         return query;
     }
 
+    /// <summary>Same ownership check as <see cref="ApplyFilter"/>, for GET by id - otherwise any
+    /// signed-in user could read another user's notification by guessing its id. A notification
+    /// that exists but isn't the caller's own returns 404 (BaseController.GetById), not 403, so
+    /// its existence isn't revealed either.</summary>
+    protected override IQueryable<Notification> GetByIdQuery(int id)
+        => _context.Notifications.Where(n => n.Id == id && n.UserId == _currentUser.UserId);
+
     public Task<int> GetUnreadCountAsync(CancellationToken cancellationToken)
         => _context.Notifications.CountAsync(n => n.UserId == _currentUser.UserId && !n.IsRead, cancellationToken);
 

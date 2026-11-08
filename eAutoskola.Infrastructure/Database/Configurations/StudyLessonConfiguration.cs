@@ -16,5 +16,7 @@ public class StudyLessonConfiguration : IEntityTypeConfiguration<StudyLesson>
             .WithMany()
             .HasForeignKey(l => l.QuestionAreaId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasQueryFilter(l => !l.IsDeleted);
     }
 }

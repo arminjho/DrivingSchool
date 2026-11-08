@@ -31,6 +31,23 @@ public class TestCrudService : BaseCRUDService<TestDto, TestSearchObject, TestRe
     protected override IQueryable<Test> GetByIdQuery(int id)
         => Context.Tests.Include(t => t.QuestionArea).Include(t => t.Questions).Where(t => t.Id == id);
 
+    protected override Task BeforeInsertAsync(Test entity, TestRequest request, CancellationToken cancellationToken)
+        => ValidateAsync(request);
+
+    protected override Task BeforeUpdateAsync(Test entity, TestRequest request, CancellationToken cancellationToken)
+        => ValidateAsync(request);
+
+    private static Task ValidateAsync(TestRequest request)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (request.PassThresholdPercent is < 0 or > 100)
+        {
+            FieldValidationRules.Add(errors, nameof(request.PassThresholdPercent), Messages.PassThresholdOutOfRange);
+        }
+        FieldValidationRules.ThrowIfAny(errors);
+        return Task.CompletedTask;
+    }
+
     protected override async Task BeforeDeleteAsync(Test entity, CancellationToken cancellationToken)
     {
         if (await Context.TestAttempts.AnyAsync(a => a.TestId == entity.Id, cancellationToken))

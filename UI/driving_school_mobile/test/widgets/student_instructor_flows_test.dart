@@ -93,6 +93,13 @@ void main() {
     Future<http.Response> api(http.Request request) async {
       calls.add(request);
       final path = request.url.path;
+      if (path.endsWith('/me')) {
+        return jsonResponse({
+          'id': 1, 'fullName': 'Adnan Zukić', 'firstName': 'Adnan', 'lastName': 'Zukić',
+          'email': 'mobile', 'phoneNumber': '+387 61 519 980', 'role': 'Student', 'isActive': true,
+          'vehicleCategoryId': 1,
+        });
+      }
       if (path.endsWith('/available-slots')) return jsonResponse([slotUtc.toIso8601String()]);
       if (path.endsWith('/driving-zones')) return jsonResponse({'resultList': [{'id': 1, 'name': 'Centar'}], 'count': 1});
       if (path.endsWith('/instructors')) {

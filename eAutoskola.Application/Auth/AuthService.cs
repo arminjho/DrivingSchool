@@ -128,6 +128,18 @@ public class AuthService : IAuthService
             return;
         }
 
+        // A still-unused earlier code must stop working the moment a new one is issued -
+        // otherwise, after the user requests a code twice and resets with the second, the
+        // first is still sitting there unused and unexpired, and could reset the password
+        // again within its own 15-minute window.
+        var previousCodes = await _context.PasswordResetTokens
+            .Where(t => t.UserId == user.Id && !t.IsUsed)
+            .ToListAsync(cancellationToken);
+        foreach (var previous in previousCodes)
+        {
+            previous.IsUsed = true;
+        }
+
         var code = GenerateResetCode();
 
         _context.PasswordResetTokens.Add(new PasswordResetToken
@@ -170,7 +182,17 @@ public class AuthService : IAuthService
         }
 
         user.PasswordHash = PasswordHasher.Hash(request.NewPassword);
-        resetToken.IsUsed = true;
+
+        // Every other outstanding code for this user is invalidated too, not just the one that
+        // was used - otherwise an earlier, still-unexpired code could reset the password again.
+        var remainingCodes = await _context.PasswordResetTokens
+            .Where(t => t.UserId == user.Id && !t.IsUsed)
+            .ToListAsync(cancellationToken);
+        foreach (var remaining in remainingCodes)
+        {
+            remaining.IsUsed = true;
+        }
+
         await _tokenBlocklistService.StageTokenInvalidationAsync(user.Id, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
     }

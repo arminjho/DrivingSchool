@@ -202,7 +202,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
                         const SizedBox(height: AppSpacing.md),
-                        AppTextField(name: 'email', label: AppStrings.fieldEmail, initialValue: me.email, validator: AppValidators.email()),
+                        AppTextField(name: 'email', label: AppStrings.fieldEmail, initialValue: me.email, validator: AppValidators.email(unchangedFrom: me.email)),
                         const SizedBox(height: AppSpacing.md),
                         AppTextField(name: 'phoneNumber', label: AppStrings.fieldPhone, initialValue: me.phoneNumber, validator: AppValidators.phone()),
                         const SizedBox(height: AppSpacing.md),

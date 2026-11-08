@@ -114,7 +114,15 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                           'questionAreaId': form.value['questionAreaId'],
                           'testId': widget.test.id,
                           'answerOptions': [
-                            for (var i = 0; i < 4; i++) {'text': optionTexts[i], 'isCorrect': i == correctIndex},
+                            // The existing option's id is sent back so the server updates it in
+                            // place instead of recreating it - a student may already have
+                            // answered it, and the FK on their answer forbids deleting it.
+                            for (var i = 0; i < 4; i++)
+                              {
+                                if (initial != null && i < initial.answerOptions.length) 'id': initial.answerOptions[i].id,
+                                'text': optionTexts[i],
+                                'isCorrect': i == correctIndex,
+                              },
                           ],
                         };
                         if (initial == null) {
@@ -160,7 +168,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                   validator: AppValidators.requiredSelection<int>(),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                AppImagePickerField(name: 'image', label: AppStrings.fieldQuestionImage, pick: _pickImage),
+                AppImagePickerField(name: 'image', label: AppStrings.fieldQuestionImage, pick: _pickImage, initialImageUrl: initial?.imagePath),
                 const SizedBox(height: AppSpacing.lg),
                 Text(AppStrings.answerOptionsTitle, style: context.text.titleSmall),
                 const SizedBox(height: AppSpacing.sm),

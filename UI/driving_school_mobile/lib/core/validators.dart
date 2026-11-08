@@ -23,9 +23,13 @@ abstract final class AppValidators {
   static FormFieldValidator<T> requiredSelection<T>() =>
       (value) => value == null ? AppStrings.selectRequired : null;
 
-  static FormFieldValidator<String> email({bool required = true}) => (value) {
+  /// [unchangedFrom] skips the format check when the field still holds that exact value - a
+  /// profile form's own e-mail field, so a seed/demo account whose login is a short word (not an
+  /// e-mail) can still save its OTHER fields without being forced to fix the login first.
+  static FormFieldValidator<String> email({bool required = true, String? unchangedFrom}) => (value) {
         final text = value?.trim() ?? '';
         if (text.isEmpty) return required ? AppStrings.invalidEmail : null;
+        if (unchangedFrom != null && text == unchangedFrom) return null;
         return _email.hasMatch(text) ? null : AppStrings.invalidEmail;
       };
 

@@ -180,7 +180,7 @@ class _VehiclesTabState extends State<VehiclesTab> {
                   validator: AppValidators.wholeNumber(min: 1980, max: DateTime.now().year + 1),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                AppImagePickerField(name: 'image', label: AppStrings.fieldVehicleImage, pick: _pickImage),
+                AppImagePickerField(name: 'image', label: AppStrings.fieldVehicleImage, pick: _pickImage, initialImageUrl: initial?.imagePath),
               ],
             ),
           ),

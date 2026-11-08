@@ -62,4 +62,33 @@ public class RequestStatusServiceTests
 
         Assert.Equal([1], await context.RequestStatuses.Select(s => s.Id).ToListAsync());
     }
+
+    // --- Dorada #9: field validation, missing even here (the only other protection this service had) ---
+
+    [Fact]
+    public async Task Insert_WithABlankName_IsRejected()
+    {
+        var (service, _) = Create();
+
+        await Assert.ThrowsAsync<ValidationException>(() => service.InsertAsync(new RequestStatusRequest { Code = "Custom", Name = " " }));
+    }
+
+    [Fact]
+    public async Task Insert_WithACodeThatAlreadyExists_IsRejectedWithASpecificMessage()
+    {
+        var (service, _) = Create();
+
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => service.InsertAsync(new RequestStatusRequest { Code = "Archived", Name = "Duplikat" }));
+        Assert.Contains(ex.Errors[nameof(RequestStatusRequest.Code)], m => m.Contains("Archived"));
+    }
+
+    [Fact]
+    public async Task Update_KeepingItsOwnCode_IsNotTreatedAsADuplicate()
+    {
+        var (service, context) = Create();
+
+        await service.UpdateAsync(2, new RequestStatusRequest { Code = "Archived", Name = "Arhiviran (izmijenjeno)" });
+
+        Assert.Equal("Arhiviran (izmijenjeno)", (await context.RequestStatuses.AsNoTracking().SingleAsync(s => s.Id == 2)).Name);
+    }
 }

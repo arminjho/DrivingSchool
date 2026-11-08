@@ -11,10 +11,9 @@ import '../../widgets/ui/app_badge.dart';
 import '../../widgets/ui/app_messages.dart';
 import '../../widgets/ui/star_rating.dart';
 
-/// 4.3.5 - the completion/grading bottom sheet. Saving always sets the lesson to Completed;
-/// the mockup's "STATUS ČASA" dropdown has exactly one meaningful value, so it is shown as a
-/// fixed field rather than a dropdown with nothing to actually choose (same read-only-field
-/// pattern as the Profile screen's category field).
+/// 4.3.5 - the completion/grading bottom sheet. The proposal describes "STATUS ČASA" as a
+/// dropdown for changing the status to Completed; saving always sets Completed regardless, so
+/// the dropdown offers only that one value instead of being replaced with a fixed field.
 class LessonCompletionSheet extends StatefulWidget {
   const LessonCompletionSheet({super.key, required this.lesson});
 
@@ -28,6 +27,7 @@ class _LessonCompletionSheetState extends State<LessonCompletionSheet> {
   final _notesController = TextEditingController();
   int _rating = 0;
   String? _ratingError;
+  String? _notesError;
   bool _isSaving = false;
 
   @override
@@ -37,18 +37,29 @@ class _LessonCompletionSheetState extends State<LessonCompletionSheet> {
   }
 
   Future<void> _save() async {
-    if (_rating == 0) {
-      setState(() => _ratingError = AppStrings.ratingRequired);
+    final notes = _notesController.text.trim();
+    final hasRating = _rating != 0;
+    final hasNotes = notes.isNotEmpty;
+    if (!hasRating || !hasNotes) {
+      setState(() {
+        _ratingError = hasRating ? null : AppStrings.ratingRequired;
+        _notesError = hasNotes ? null : AppStrings.instructorNotesRequired;
+      });
       return;
     }
 
     setState(() {
       _isSaving = true;
       _ratingError = null;
+      _notesError = null;
     });
     try {
       final provider = LessonProvider(context.read<AuthSession>());
-      await provider.complete(widget.lesson.id, rating: _rating, instructorNotes: _notesController.text.trim());
+      await provider.complete(
+        widget.lesson.id,
+        rating: _rating,
+        instructorNotes: notes,
+      );
       if (mounted) {
         showSuccessMessage(context, AppStrings.lessonCompletedMessage);
         Navigator.of(context).pop(true);
@@ -68,31 +79,64 @@ class _LessonCompletionSheetState extends State<LessonCompletionSheet> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
             Center(
-              child: Container(height: 4, width: 40, margin: const EdgeInsets.only(bottom: AppSpacing.md), decoration: BoxDecoration(color: c.border, borderRadius: AppRadius.all(2))),
+              child: Container(
+                height: 4,
+                width: 40,
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: c.border,
+                  borderRadius: AppRadius.all(2),
+                ),
+              ),
             ),
             Row(
               children: [
-                Expanded(child: Text(AppStrings.completeLessonTitle, style: context.text.titleLarge)),
-                IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.of(context).pop(false)),
+                Expanded(
+                  child: Text(
+                    AppStrings.completeLessonTitle,
+                    style: context.text.titleLarge,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => Navigator.of(context).pop(false),
+                ),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
-                AppAvatar(name: lesson.studentFullName, size: 40, imagePath: lesson.studentProfileImagePath),
+                AppAvatar(
+                  name: lesson.studentFullName,
+                  size: 40,
+                  imagePath: lesson.studentProfileImagePath,
+                ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(lesson.studentFullName, style: context.text.titleSmall),
-                      Text('${AppFormat.dateTime(lesson.startsAtUtc)} · ${lesson.drivingZoneName}', style: context.text.bodySmall?.copyWith(color: c.textMuted)),
+                      Text(
+                        lesson.studentFullName,
+                        style: context.text.titleSmall,
+                      ),
+                      Text(
+                        '${AppFormat.dateTime(lesson.startsAtUtc)} · ${lesson.drivingZoneName}',
+                        style: context.text.bodySmall?.copyWith(
+                          color: c.textMuted,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -101,30 +145,57 @@ class _LessonCompletionSheetState extends State<LessonCompletionSheet> {
             const SizedBox(height: AppSpacing.lg),
             Text(AppStrings.ratingLabel, style: context.text.labelLarge),
             const SizedBox(height: AppSpacing.xs),
-            StarRating(value: _rating, onChanged: (value) => setState(() { _rating = value; _ratingError = null; })),
+            StarRating(
+              value: _rating,
+              onChanged: (value) => setState(() {
+                _rating = value;
+                _ratingError = null;
+              }),
+            ),
             if (_rating == 0) ...[
               const SizedBox(height: AppSpacing.xxs),
-              Text(_ratingError ?? AppStrings.ratingHint, style: context.text.bodySmall?.copyWith(color: _ratingError != null ? c.danger : c.textMuted)),
+              Text(
+                _ratingError ?? AppStrings.ratingHint,
+                style: context.text.bodySmall?.copyWith(
+                  color: _ratingError != null ? c.danger : c.textMuted,
+                ),
+              ),
             ],
             const SizedBox(height: AppSpacing.lg),
             TextField(
               controller: _notesController,
               maxLines: 4,
-              decoration: InputDecoration(labelText: AppStrings.fieldInstructorNotes, hintText: AppStrings.instructorNotesHint, alignLabelWithHint: true),
+              onChanged: (_) {
+                if (_notesError != null) setState(() => _notesError = null);
+              },
+              decoration: InputDecoration(
+                labelText: AppStrings.fieldInstructorNotes,
+                hintText: AppStrings.instructorNotesHint,
+                alignLabelWithHint: true,
+                errorText: _notesError,
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
-            InputDecorator(
-              decoration: const InputDecoration(labelText: AppStrings.fieldLessonStatus, enabled: false),
-              child: const Text(AppStrings.lessonCompletedStatusValue),
+            DropdownButtonFormField<String>(
+              initialValue: AppStrings.lessonCompletedStatusValue,
+              decoration: const InputDecoration(labelText: AppStrings.fieldLessonStatus),
+              items: const [DropdownMenuItem(value: AppStrings.lessonCompletedStatusValue, child: Text(AppStrings.lessonCompletedStatusValue))],
+              onChanged: (_) {},
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton.icon(
               onPressed: _isSaving ? null : _save,
               icon: _isSaving
-                  ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.save_outlined, size: 18),
               label: const Text(AppStrings.save),
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(AppSizes.controlHeight)),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(AppSizes.controlHeight),
+              ),
             ),
           ],
         ),

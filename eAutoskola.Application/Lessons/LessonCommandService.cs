@@ -65,11 +65,9 @@ public class LessonCommandService
             throw new BusinessException(Messages.StudentProfileNotFound);
         }
 
-        await ValidateInstructorAsync(request.InstructorId, cancellationToken);
-        ValidateFutureDate(request.StartsAtUtc);
-        await EnsureNoOverlapAsync(request.InstructorId, studentId, request.StartsAtUtc, endsAtUtc, null, cancellationToken);
-
-        var vehicleId = await FindAvailableVehicleAsync(student.StudentProfile.VehicleCategoryId, request.StartsAtUtc, endsAtUtc, null, cancellationToken);
+        var vehicleId = await ValidateSlotAsync(
+            request.InstructorId, studentId, student.StudentProfile.VehicleCategoryId,
+            request.StartsAtUtc, endsAtUtc, request.DrivingZoneId, null, cancellationToken);
         var lessonNumber = await _context.Lessons.CountAsync(l => l.StudentId == studentId, cancellationToken) + 1;
 
         var lesson = new Lesson
@@ -124,14 +122,21 @@ public class LessonCommandService
         }
 
         var endsAtUtc = request.StartsAtUtc + LessonSlotPolicy.SlotDuration;
-        ValidateFutureDate(request.StartsAtUtc);
-        await EnsureNoOverlapAsync(lesson.InstructorId, lesson.StudentId, request.StartsAtUtc, endsAtUtc, lesson.Id, cancellationToken);
-
         var student = await _context.StudentProfiles.FirstAsync(p => p.UserId == lesson.StudentId, cancellationToken);
-        lesson.VehicleId = await FindAvailableVehicleAsync(student.VehicleCategoryId, request.StartsAtUtc, endsAtUtc, lesson.Id, cancellationToken);
+
+        lesson.VehicleId = await ValidateSlotAsync(
+            lesson.InstructorId, lesson.StudentId, student.VehicleCategoryId,
+            request.StartsAtUtc, endsAtUtc, request.DrivingZoneId, lesson.Id, cancellationToken);
         lesson.StartsAtUtc = request.StartsAtUtc;
         lesson.EndsAtUtc = endsAtUtc;
         lesson.DrivingZoneId = request.DrivingZoneId;
+
+        // Same pattern as BookAsync: staged on this request's shared context, so the reschedule
+        // and the instructor's notification commit or fail together in TransitionAsync's save.
+        _notificationService.Stage(
+            lesson.InstructorId, Messages.NotificationLessonRescheduledTitle,
+            string.Format(Messages.NotificationLessonRescheduledBody, lesson.StartsAtUtc),
+            NotificationType.LessonRescheduled);
 
         _context.LessonStatusHistories.Add(new LessonStatusHistory
         {
@@ -139,6 +144,7 @@ public class LessonCommandService
             ChangedByUserId = _currentUser.UserId, Reason = Messages.HistoryLessonRescheduled,
         });
         await _context.SaveChangesAsync(cancellationToken);
+        await _notificationService.PushStagedAsync(cancellationToken);
 
         return await ReloadAsync(lesson.Id, cancellationToken);
     }
@@ -149,9 +155,29 @@ public class LessonCommandService
         EnsureInstructorOwnerOrAdmin(lesson);
         LessonStateMachine.EnsureCanTransition(lesson.Status, LessonStatus.Confirmed);
 
+        if (lesson.StartsAtUtc <= DateTime.UtcNow)
+        {
+            throw new BusinessException(Messages.LessonSlotAlreadyPassed);
+        }
         if (lesson.VehicleId is null)
         {
             throw new BusinessException(Messages.LessonConfirmNeedsVehicle);
+        }
+
+        // The vehicle assigned at booking time may have been sent for service or removed from
+        // the fleet since - re-check it's still usable right before confirming, and reassign a
+        // free one of the same category rather than confirming with a vehicle that no longer is.
+        var vehicleStillActive = await _context.Vehicles
+            .AnyAsync(v => v.Id == lesson.VehicleId && v.Status == VehicleStatus.Active, cancellationToken);
+        if (!vehicleStillActive)
+        {
+            var studentCategoryId = await _context.StudentProfiles
+                .Where(p => p.UserId == lesson.StudentId)
+                .Select(p => p.VehicleCategoryId)
+                .FirstAsync(cancellationToken);
+            var replacementVehicleId = await FindAvailableVehicleAsync(
+                studentCategoryId, lesson.StartsAtUtc, lesson.EndsAtUtc, lesson.Id, cancellationToken);
+            lesson.VehicleId = replacementVehicleId ?? throw new BusinessException(Messages.LessonConfirmVehicleUnavailable);
         }
 
         // Staged on the context here, committed by TransitionAsync's single SaveChangesAsync -
@@ -217,7 +243,11 @@ public class LessonCommandService
         LessonStateMachine.EnsureCanTransition(lesson.Status, LessonStatus.Cancelled);
 
         var reason = request?.Reason;
-        if (lesson.Status == LessonStatus.Confirmed && string.IsNullOrWhiteSpace(reason))
+        // The student may cancel their own still-Pending request without a reason; anyone else
+        // (instructor or admin) must always explain why, Pending or Confirmed - otherwise an
+        // instructor's /cancel on a Pending request bypassed the reason /reject already requires.
+        var requiresReason = !isStudent || lesson.Status == LessonStatus.Confirmed;
+        if (requiresReason && string.IsNullOrWhiteSpace(reason))
         {
             throw new ValidationException("reason", Messages.RequiredField);
         }
@@ -307,6 +337,12 @@ public class LessonCommandService
             throw new BusinessException(Messages.LessonStartOnlyConfirmed);
         }
 
+        var earliestStart = lesson.StartsAtUtc - TimeSpan.FromMinutes(LessonStateMachine.StartToleranceMinutes);
+        if (DateTime.UtcNow < earliestStart)
+        {
+            throw new BusinessException(string.Format(Messages.LessonStartTooEarly, earliestStart, LessonStateMachine.StartToleranceMinutes));
+        }
+
         lesson.StartedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -323,9 +359,17 @@ public class LessonCommandService
         {
             throw new BusinessException(Messages.LessonCompleteNeedsStart);
         }
+        if (DateTime.UtcNow < lesson.StartsAtUtc)
+        {
+            throw new BusinessException(string.Format(Messages.LessonCompleteTooEarly, lesson.StartsAtUtc));
+        }
         if (request.Rating is < 1 or > 5)
         {
             throw new ValidationException(nameof(request.Rating), Messages.RatingOutOfRange);
+        }
+        if (string.IsNullOrWhiteSpace(request.InstructorNotes))
+        {
+            throw new ValidationException(nameof(request.InstructorNotes), Messages.RequiredField);
         }
 
         lesson.Rating = request.Rating;
@@ -407,13 +451,41 @@ public class LessonCommandService
         return id != 0 ? id : throw new BusinessException(Messages.RequestStatusMissing);
     }
 
-    private async Task ValidateInstructorAsync(int instructorId, CancellationToken cancellationToken)
+    /// <summary>The one slot-validation method, called by both BookAsync and RescheduleAsync, so
+    /// a slot can never pass one path's checks and fail the other's: the start time must be a
+    /// full hour within working hours, the instructor's VehicleCategoryId must match the
+    /// student's, the driving zone must exist, the two don't already have a conflicting lesson,
+    /// and a vehicle of that category must actually be free for the slot - returned here so the
+    /// booking is never left Pending without one (that used to only fail later, at Confirm).</summary>
+    private async Task<int> ValidateSlotAsync(
+        int instructorId, int studentId, int studentVehicleCategoryId,
+        DateTime startsAtUtc, DateTime endsAtUtc, int drivingZoneId,
+        int? excludingLessonId, CancellationToken cancellationToken)
     {
-        var instructor = await _context.Users.FirstOrDefaultAsync(u => u.Id == instructorId && u.Role == Role.Instructor, cancellationToken);
-        if (instructor is null || !instructor.IsActive)
+        ValidateFutureDate(startsAtUtc);
+        ValidateFullHourWithinWorkingHours(startsAtUtc);
+
+        var instructor = await _context.Users.Include(u => u.InstructorProfile)
+            .FirstOrDefaultAsync(u => u.Id == instructorId && u.Role == Role.Instructor, cancellationToken);
+        if (instructor is null || !instructor.IsActive || instructor.InstructorProfile is null)
         {
             throw new ValidationException(nameof(LessonBookRequest.InstructorId), Messages.InstructorUnavailable);
         }
+        if (instructor.InstructorProfile.VehicleCategoryId != studentVehicleCategoryId)
+        {
+            throw new ValidationException(nameof(LessonBookRequest.InstructorId), Messages.InstructorCategoryMismatch);
+        }
+
+        var drivingZoneExists = await _context.DrivingZones.AnyAsync(z => z.Id == drivingZoneId, cancellationToken);
+        if (!drivingZoneExists)
+        {
+            throw new ValidationException(nameof(LessonBookRequest.DrivingZoneId), Messages.DrivingZoneNotFound);
+        }
+
+        await EnsureNoOverlapAsync(instructorId, studentId, startsAtUtc, endsAtUtc, excludingLessonId, cancellationToken);
+
+        var vehicleId = await FindAvailableVehicleAsync(studentVehicleCategoryId, startsAtUtc, endsAtUtc, excludingLessonId, cancellationToken);
+        return vehicleId ?? throw new ValidationException(nameof(LessonBookRequest.StartsAtUtc), Messages.NoVehicleAvailableForSlot);
     }
 
     private static void ValidateFutureDate(DateTime startsAtUtc)
@@ -421,6 +493,22 @@ public class LessonCommandService
         if (startsAtUtc <= DateTime.UtcNow)
         {
             throw new ValidationException(nameof(LessonBookRequest.StartsAtUtc), Messages.SlotMustBeInFuture);
+        }
+    }
+
+    /// <summary>LessonSlotPolicy models every slot as a full hour between WorkDayStart and
+    /// WorkDayEnd (e.g. 08:00, 09:00, ..., 17:00 for an 08:00-18:00 day) - anything off the hour,
+    /// or starting too late for a full SlotDuration to fit before WorkDayEnd, is rejected here
+    /// instead of silently being accepted and only looking wrong on a calendar later.</summary>
+    private static void ValidateFullHourWithinWorkingHours(DateTime startsAtUtc)
+    {
+        var timeOfDay = startsAtUtc.TimeOfDay;
+        var latestStart = LessonSlotPolicy.WorkDayEnd - LessonSlotPolicy.SlotDuration;
+
+        if (timeOfDay.Seconds != 0 || timeOfDay.Milliseconds != 0 || timeOfDay.Minutes != 0
+            || timeOfDay < LessonSlotPolicy.WorkDayStart || timeOfDay > latestStart)
+        {
+            throw new ValidationException(nameof(LessonBookRequest.StartsAtUtc), Messages.SlotOutsideWorkingHours);
         }
     }
 

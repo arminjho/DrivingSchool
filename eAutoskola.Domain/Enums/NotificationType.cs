@@ -9,4 +9,5 @@ public enum NotificationType
     LessonCompleted = 4,
     PaymentReceived = 5,
     RefundIssued = 6,
+    LessonRescheduled = 7,
 }

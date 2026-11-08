@@ -80,6 +80,8 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                                   children: [
                                     Text(rec.title, style: context.text.titleSmall),
                                     Text('${rec.chapterLabel} · ${AppStrings.readingMinutesLabel(rec.readingMinutes)}', style: context.text.bodySmall?.copyWith(color: context.colors.textMuted)),
+                                    const SizedBox(height: AppSpacing.xxs),
+                                    Text(rec.explanation, style: context.text.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
                                   ],
                                 ),
                               ),

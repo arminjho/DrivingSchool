@@ -25,6 +25,13 @@ public static class Messages
     public const string MaxLengthExceeded = "{0} ne smije imati više od {1} znakova.";
     public const string FirstNameLabel = "Ime";
     public const string LastNameLabel = "Prezime";
+    public const string NameLabel = "Naziv";
+    public const string CodeLabel = "Šifra";
+    public const string TitleLabel = "Naziv";
+    public const string PostalCodeLabel = "Poštanski broj";
+    public const string DescriptionLabel = "Opis";
+    public const string QuestionTextLabel = "Tekst pitanja";
+    public const string AnswerOptionTextLabel = "Tekst odgovora";
 
     // --- Auth ---
     public const string InvalidCredentials = "Pogrešan e-mail ili lozinka.";
@@ -42,6 +49,24 @@ public static class Messages
     public const string VehicleCategoryNotFound = "Odabrana kategorija vozila ne postoji.";
     public const string UserHasLessons = "Korisnik se ne može obrisati jer ima evidentirane časove u sistemu.";
 
+    // --- Reference data (šifarnici) ---
+    public const string CountryNotFound = "Odabrana država ne postoji.";
+    public const string CountryCodeAlreadyExists = "Država sa šifrom {0} već postoji.";
+    public const string VehicleCategoryCodeAlreadyExists = "Kategorija vozila sa šifrom {0} već postoji.";
+    public const string RequestStatusCodeAlreadyExists = "Status sa šifrom {0} već postoji.";
+    public const string NegativePriceNotAllowed = "Cijena ne može biti negativna.";
+    public const string CountryCannotBeDeleted = "Državu nije moguće obrisati jer je koristi {0} gradova.";
+    public const string CityCannotBeDeleted = "Grad nije moguće obrisati jer ga koristi {0} korisnika.";
+    public const string VehicleCategoryUsedByVehicles = "Kategoriju vozila nije moguće obrisati jer je koristi {0} vozila.";
+    public const string VehicleCategoryUsedByStudents = "Kategoriju vozila nije moguće obrisati jer je koristi {0} učenika.";
+    public const string VehicleCategoryUsedByInstructors = "Kategoriju vozila nije moguće obrisati jer je koristi {0} instruktora.";
+    public const string ServiceTypeCannotBeDeleted = "Tip usluge nije moguće obrisati jer je koristi {0} zaduženja učenika.";
+    public const string DrivingZoneCannotBeDeleted = "Zonu vožnje nije moguće obrisati jer je koristi {0} časova.";
+    public const string QuestionAreaUsedByQuestions = "Oblast pitanja nije moguće obrisati jer sadrži {0} pitanja.";
+    public const string QuestionAreaUsedByTests = "Oblast pitanja nije moguće obrisati jer je koristi {0} testova.";
+    public const string QuestionAreaUsedByStudyLessons = "Oblast pitanja nije moguće obrisati jer je koristi {0} lekcija za učenje.";
+    public const string VehicleServiceTypeCannotBeDeleted = "Tip servisa nije moguće obrisati jer je koristi {0} evidentiranih servisa vozila.";
+
     // --- Ownership / authorization ---
     public const string NotOwner = "Nemate dozvolu za rad nad ovim podatkom.";
     public const string FileAccessDenied = "Nemate dozvolu za pristup ovom fajlu.";
@@ -51,6 +76,7 @@ public static class Messages
     public const string RegistrationNumberExists = "Vozilo sa ovom registarskom oznakom već postoji.";
     public const string VehicleHasFutureLesson = "Vozilo se ne može obrisati jer je dodijeljeno potvrđenom času vožnje u budućnosti.";
     public const string VehicleNotFound = "Odabrano vozilo ne postoji.";
+    public const string NegativeCostNotAllowed = "Trošak servisa ne može biti negativan.";
 
     // --- Lessons ---
     public const string StudentAccountDeactivated = "Vaš nalog je deaktiviran, nije moguće zakazati čas.";
@@ -64,6 +90,14 @@ public static class Messages
     public const string LessonStartOnlyConfirmed = "Čas se može započeti samo ako je potvrđen.";
     public const string LessonCompleteNeedsStart = "Čas mora biti započet prije nego što se može završiti.";
     public const string RatingOutOfRange = "Ocjena mora biti između 1 i 5.";
+    public const string SlotOutsideWorkingHours = "Termin mora biti na puni sat, u radno vrijeme instruktora.";
+    public const string InstructorCategoryMismatch = "Odabrani instruktor ne predaje vašu kategoriju vozačke dozvole.";
+    public const string DrivingZoneNotFound = "Odabrana zona vožnje ne postoji.";
+    public const string NoVehicleAvailableForSlot = "Nema slobodnog vozila vaše kategorije za odabrani termin. Odaberite drugi termin.";
+    public const string LessonSlotAlreadyPassed = "Termin ovog časa je već prošao, zahtjev se više ne može potvrditi.";
+    public const string LessonConfirmVehicleUnavailable = "Dodijeljeno vozilo više nije dostupno (poslano na servis ili uklonjeno), a nema slobodnog zamjenskog vozila iste kategorije za ovaj termin. Čas nije moguće potvrditi.";
+    public const string LessonStartTooEarly = "Čas se može započeti najranije u {0:dd.MM.yyyy. HH:mm}h (dozvoljena tolerancija je {1} minuta prije zakazanog termina).";
+    public const string LessonCompleteTooEarly = "Čas se može završiti tek nakon zakazanog termina, odnosno od {0:dd.MM.yyyy. HH:mm}h.";
     public const string RequestStatusMissing = "Status zahtjeva nije pronađen u šifarniku. Obratite se administratoru.";
     public const string RequestStatusCodeFixed = "Šifra ovog statusa je vezana za tok časova i ne može se mijenjati. Možete izmijeniti naziv i opis.";
     public const string RequestStatusUsedByLessonFlow = "Ovaj status koristi tok časova (Na čekanju, Potvrđen, Otkazan, Završen) i ne može se obrisati.";
@@ -96,6 +130,8 @@ public static class Messages
     public const string NotificationAdminPaymentReceivedBody = "Uplata učenika {0} u iznosu od {1:F2} KM je evidentirana.";
     public const string NotificationAdminRefundBody = "Izvršen je povrat novca učeniku {0} u iznosu od {1:F2} KM.";
     public const string NotificationPaymentReceivedBody = "Vaša uplata u iznosu od {0:F2} KM je uspješno evidentirana.";
+    public const string NotificationLessonRescheduledTitle = "Termin časa izmijenjen";
+    public const string NotificationLessonRescheduledBody = "Učenik je promijenio termin časa na {0:dd.MM.yyyy. HH:mm}.";
 
     // --- Payments ---
     public const string PaymentUnavailable = "Plaćanje trenutno nije moguće. Pokušajte ponovo kasnije.";
@@ -118,6 +154,7 @@ public static class Messages
     public const string QuestionHasAnswers = "Pitanje se ne može obrisati jer postoje evidentirani odgovori učenika.";
     public const string QuestionNeedsFourOptions = "Pitanje mora imati tačno 4 ponuđena odgovora.";
     public const string QuestionNeedsOneCorrectOption = "Tačno jedan ponuđeni odgovor mora biti označen kao tačan.";
+    public const string PassThresholdOutOfRange = "Prag prolaznosti mora biti u rasponu od 0 do 100.";
 
     // --- Recommender (docs: recommender-dokumentacija.md §6) ---
     public const string RecommendationExplanation = "Preporučujemo vam da ponovite lekciju '{0}' jer ste na posljednjem probnom testu imali {1}% netačnih odgovora iz ove specifične kategorije ({2}).";

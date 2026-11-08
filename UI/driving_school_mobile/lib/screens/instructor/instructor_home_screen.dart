@@ -15,6 +15,7 @@ import '../../widgets/ui/app_states.dart';
 import '../../widgets/ui/lesson_status_badge.dart';
 import 'lesson_requests_screen.dart';
 import 'my_students_screen.dart';
+import 'reports_screen.dart';
 import 'request_details_screen.dart';
 import 'schedule_screen.dart';
 
@@ -99,6 +100,14 @@ class _InstructorHomeScreenState extends State<InstructorHomeScreen> {
                 tone: AppTone.success,
                 label: AppStrings.menuMyStudents,
                 onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const MyStudentsScreen())),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _menuRow(
+                context,
+                icon: Icons.bar_chart_rounded,
+                tone: AppTone.primary,
+                label: AppStrings.menuReports,
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ReportsScreen())),
               ),
               const SizedBox(height: AppSpacing.lg),
               Text(AppStrings.todaysLessonsTitle, style: context.text.titleSmall),

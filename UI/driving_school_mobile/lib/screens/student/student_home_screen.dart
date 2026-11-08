@@ -56,7 +56,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     });
     try {
       final results = await (
-        _lessonProvider.getMy(const PagedQuery(page: 1, pageSize: 1, sortBy: 'StartsAtUtc', ascending: true, filters: {'tab': 'active'})),
+        _lessonProvider.getMy(const PagedQuery(page: 1, pageSize: 1, sortBy: 'StartsAtUtc', ascending: true, filters: {'tab': 'upcoming'})),
         _lessonProvider.getMy(const PagedQuery(page: 1, pageSize: 1, filters: {'tab': 'completed'})),
         _testProvider.getMy(),
       ).wait;

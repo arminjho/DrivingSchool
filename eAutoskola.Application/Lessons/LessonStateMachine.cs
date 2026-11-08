@@ -22,6 +22,11 @@ public static class LessonStateMachine
     /// before the scheduled start.</summary>
     public const int CancellationCutoffHours = 24;
 
+    /// <summary>A Confirmed lesson may be started this many minutes before its scheduled start
+    /// at the earliest - small grace window for an instructor starting slightly ahead of time,
+    /// not a way to start a lesson hours early.</summary>
+    public const int StartToleranceMinutes = 10;
+
     private static readonly Dictionary<LessonStatus, LessonStatus[]> AllowedTransitions = new()
     {
         [LessonStatus.Pending] = [LessonStatus.Confirmed, LessonStatus.Cancelled],

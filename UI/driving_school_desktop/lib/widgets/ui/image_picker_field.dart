@@ -1,6 +1,9 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
+import 'package:provider/provider.dart';
 
+import '../../core/api_config.dart';
+import '../../core/auth_session.dart';
 import '../../core/design_tokens.dart';
 import '../../core/image_validation.dart';
 import '../../l10n/app_strings.dart';
@@ -19,6 +22,10 @@ class AppImagePickerField extends StatefulWidget {
   final ValueChanged<PickedImage?>? onChanged;
   final bool enabled;
 
+  /// The record's stored image path (e.g. `initial?.imagePath` on an edit form), shown until
+  /// the user picks a new one - otherwise an edit form looks like the record has no image at all.
+  final String? initialImageUrl;
+
   const AppImagePickerField({
     super.key,
     required this.name,
@@ -27,6 +34,7 @@ class AppImagePickerField extends StatefulWidget {
     this.isRequired = false,
     this.onChanged,
     this.enabled = true,
+    this.initialImageUrl,
   });
 
   @override
@@ -65,6 +73,7 @@ class _AppImagePickerFieldState extends State<AppImagePickerField> {
       builder: (field) {
         final image = field.value;
         final isValid = image != null && ImageValidator.validate(image.name, image.bytes) == null;
+        final hasExistingImage = image == null && widget.initialImageUrl != null;
 
         return InputDecorator(
           decoration: InputDecoration(labelText: widget.label, errorText: field.errorText, enabled: widget.enabled),
@@ -81,7 +90,9 @@ class _AppImagePickerFieldState extends State<AppImagePickerField> {
                 ),
                 child: isValid
                     ? Image(image: _previewFor(image), fit: BoxFit.cover)
-                    : Icon(Icons.image_outlined, color: c.textMuted),
+                    : hasExistingImage
+                        ? _ExistingImagePreview(path: widget.initialImageUrl!)
+                        : Icon(Icons.image_outlined, color: c.textMuted),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -100,7 +111,7 @@ class _AppImagePickerFieldState extends State<AppImagePickerField> {
                             }
                           : null,
                       icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
-                      label: Text(image == null ? AppStrings.pickImage : AppStrings.changeImage),
+                      label: Text(image == null && !hasExistingImage ? AppStrings.pickImage : AppStrings.changeImage),
                     ),
                     if (image != null)
                       TextButton(
@@ -114,6 +125,26 @@ class _AppImagePickerFieldState extends State<AppImagePickerField> {
           ),
         );
       },
+    );
+  }
+}
+
+/// The record's already-stored image, loaded the same way as [AppThumbnail] (`GET /api/files`
+/// with the session's token) - kept local to this file since the picker's 72x72 frame and
+/// border differ from the table thumbnail's.
+class _ExistingImagePreview extends StatelessWidget {
+  final String path;
+
+  const _ExistingImagePreview({required this.path});
+
+  @override
+  Widget build(BuildContext context) {
+    final token = context.read<AuthSession>().token;
+    return Image.network(
+      ApiConfig.uri('api/files', {'path': path}).toString(),
+      headers: {if (token != null) 'Authorization': 'Bearer $token'},
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => Icon(Icons.image_outlined, color: context.colors.textMuted),
     );
   }
 }

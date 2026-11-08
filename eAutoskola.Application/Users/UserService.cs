@@ -86,6 +86,11 @@ public class UserService : BaseCRUDService<UserDto, UserSearchObject, UserInsert
         FieldValidationRules.RequireText(errors, nameof(request.LastName), request.LastName, 100, Messages.LastNameLabel);
         FieldValidationRules.RequirePhone(errors, nameof(request.PhoneNumber), request.PhoneNumber);
 
+        if (entity.Role is Role.Student or Role.Instructor && request.VehicleCategoryId is null)
+        {
+            FieldValidationRules.Add(errors, nameof(request.VehicleCategoryId), Messages.RequiredField);
+        }
+
         if (!string.IsNullOrEmpty(request.NewPassword) || !string.IsNullOrEmpty(request.ConfirmNewPassword))
         {
             FieldValidationRules.RequirePassword(errors, nameof(request.NewPassword), request.NewPassword);
@@ -96,6 +101,19 @@ public class UserService : BaseCRUDService<UserDto, UserSearchObject, UserInsert
         }
 
         FieldValidationRules.ThrowIfAny(errors);
+
+        // Not auto-adapted: User has no VehicleCategoryId of its own, it lives on the profile
+        // row, which UpdateAsync's plain FindAsync doesn't load.
+        if (entity.Role == Role.Student)
+        {
+            var profile = await Context.StudentProfiles.FirstOrDefaultAsync(p => p.UserId == entity.Id, cancellationToken);
+            if (profile != null) profile.VehicleCategoryId = request.VehicleCategoryId!.Value;
+        }
+        else if (entity.Role == Role.Instructor)
+        {
+            var profile = await Context.InstructorProfiles.FirstOrDefaultAsync(p => p.UserId == entity.Id, cancellationToken);
+            if (profile != null) profile.VehicleCategoryId = request.VehicleCategoryId!.Value;
+        }
 
         if (!string.IsNullOrEmpty(request.NewPassword))
         {

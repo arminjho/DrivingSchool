@@ -93,4 +93,57 @@ public class LessonQueryServiceTests
 
         Assert.Equal([ids[2], ids[0], ids[1]], page.ResultList.Select(l => l.Id));
     }
+
+    /// <summary>Dorada #16: a request the instructor never acted on (Pending), or a confirmed
+    /// lesson whose time already passed without being marked Completed, must never be mistaken
+    /// for the "next lesson" - but the general "active" list still shows both, unchanged.</summary>
+    [Fact]
+    public async Task Upcoming_ExcludesAPendingOrConfirmedLessonWhoseStartHasAlreadyPassed()
+    {
+        var f = new PaymentTestFixture();
+        f.Context.DrivingZones.Add(new DrivingZone { Id = 1, Name = "Centar" });
+        var overdue = new Lesson
+        {
+            StudentId = PaymentTestFixture.StudentId, InstructorId = PaymentTestFixture.InstructorId, DrivingZoneId = 1,
+            StartsAtUtc = DateTime.UtcNow.AddDays(-1), EndsAtUtc = DateTime.UtcNow.AddDays(-1).AddHours(1), Status = LessonStatus.Confirmed,
+        };
+        var upcoming = new Lesson
+        {
+            StudentId = PaymentTestFixture.StudentId, InstructorId = PaymentTestFixture.InstructorId, DrivingZoneId = 1,
+            StartsAtUtc = DateTime.UtcNow.AddDays(3), EndsAtUtc = DateTime.UtcNow.AddDays(3).AddHours(1), Status = LessonStatus.Pending,
+        };
+        f.Context.Lessons.AddRange(overdue, upcoming);
+        f.Context.SaveChanges();
+        var service = new LessonQueryService(f.Context, f.CurrentUser.Object);
+
+        var active = await service.GetMyLessonsAsync(new MyLessonsSearchObject { Tab = "active" }, default);
+        var upcomingTab = await service.GetMyLessonsAsync(new MyLessonsSearchObject { Tab = "upcoming" }, default);
+
+        Assert.Equal(2, active.ResultList.Count);
+        Assert.Equal([upcoming.Id], upcomingTab.ResultList.Select(l => l.Id));
+    }
+
+    [Fact]
+    public async Task Upcoming_SortedByStartAscending_ReturnsTheNearestFutureLessonFirst_EvenWithAnOverdueOneInTheList()
+    {
+        var f = new PaymentTestFixture();
+        f.Context.DrivingZones.Add(new DrivingZone { Id = 1, Name = "Centar" });
+
+        Lesson NewLesson(DateTime startsAtUtc, LessonStatus status) => new()
+        {
+            StudentId = PaymentTestFixture.StudentId, InstructorId = PaymentTestFixture.InstructorId, DrivingZoneId = 1,
+            StartsAtUtc = startsAtUtc, EndsAtUtc = startsAtUtc.AddHours(1), Status = status,
+        };
+
+        var overdue = NewLesson(DateTime.UtcNow.AddHours(-2), LessonStatus.Confirmed);
+        var nearest = NewLesson(DateTime.UtcNow.AddDays(1), LessonStatus.Pending);
+        var later = NewLesson(DateTime.UtcNow.AddDays(5), LessonStatus.Confirmed);
+        f.Context.Lessons.AddRange(overdue, nearest, later);
+        f.Context.SaveChanges();
+        var service = new LessonQueryService(f.Context, f.CurrentUser.Object);
+
+        var page = await service.GetMyLessonsAsync(new MyLessonsSearchObject { Tab = "upcoming", SortBy = "StartsAtUtc", SortDirection = "asc" }, default);
+
+        Assert.Equal([nearest.Id, later.Id], page.ResultList.Select(l => l.Id));
+    }
 }

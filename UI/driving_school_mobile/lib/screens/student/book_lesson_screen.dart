@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/auth_session.dart';
 import '../../core/base_provider.dart';
 import '../../core/design_tokens.dart';
+import '../../core/error_text.dart';
 import '../../core/form_errors.dart';
 import '../../core/formatters.dart';
 import '../../core/validators.dart';
@@ -14,6 +15,7 @@ import '../../models/instructor.dart';
 import '../../providers/driving_zone_provider.dart';
 import '../../providers/instructor_provider.dart';
 import '../../providers/lesson_provider.dart';
+import '../../providers/me_api.dart';
 import '../../widgets/ui/api_dropdown_field.dart';
 import '../../widgets/ui/app_action_button.dart';
 import '../../widgets/ui/app_card.dart';
@@ -37,11 +39,15 @@ class _BookLessonScreenState extends State<BookLessonScreen> {
   late final LessonProvider _lessonProvider;
   late final InstructorProvider _instructorProvider;
   late final DrivingZoneProvider _zoneProvider;
+  late final MeApi _meApi;
 
   int? _instructorId;
   DateTime? _date;
   bool _isSubmitting = false;
   String? _banner;
+
+  int? _studentVehicleCategoryId;
+  String? _loadError;
 
   @override
   void initState() {
@@ -50,13 +56,33 @@ class _BookLessonScreenState extends State<BookLessonScreen> {
     _lessonProvider = LessonProvider(session);
     _instructorProvider = InstructorProvider(session);
     _zoneProvider = DrivingZoneProvider(session);
+    _meApi = MeApi(session);
+    _loadProfile();
+  }
+
+  /// The instructor dropdown must only ever offer instructors who teach the student's own
+  /// vehicle category (dorada: booking with a mismatched instructor used to be accepted by the
+  /// server too, but the student could pick one in the first place) - so the whole form waits
+  /// for this instead of filtering an already-loaded list after the fact.
+  Future<void> _loadProfile() async {
+    setState(() => _loadError = null);
+    try {
+      final me = await _meApi.getMe();
+      if (!mounted) return;
+      setState(() => _studentVehicleCategoryId = me.vehicleCategoryId);
+    } on Object catch (error) {
+      if (mounted) setState(() => _loadError = failureCause(error));
+    }
   }
 
   Future<List<DateTime>> _loadSlots() async {
     final instructorId = _instructorId;
     final date = _date;
     if (instructorId == null || date == null) return const [];
-    return _lessonProvider.getAvailableSlots(instructorId: instructorId, date: date);
+    return _lessonProvider.getAvailableSlots(
+      instructorId: instructorId,
+      date: date,
+    );
   }
 
   Future<void> _submit() async {
@@ -70,9 +96,14 @@ class _BookLessonScreenState extends State<BookLessonScreen> {
     try {
       await _lessonProvider.book(
         instructorId: form.value['instructorId'] as int,
-        startsAtUtc: DateTime.fromMillisecondsSinceEpoch(form.value['slot'] as int, isUtc: true),
+        startsAtUtc: DateTime.fromMillisecondsSinceEpoch(
+          form.value['slot'] as int,
+          isUtc: true,
+        ),
         drivingZoneId: form.value['drivingZoneId'] as int,
-        note: (form.value['note'] as String?)?.trim().isEmpty ?? true ? null : form.value['note'] as String?,
+        note: (form.value['note'] as String?)?.trim().isEmpty ?? true
+            ? null
+            : form.value['note'] as String?,
       );
       if (!mounted) return;
       showSuccessMessage(context, AppStrings.bookingSuccess);
@@ -91,75 +122,120 @@ class _BookLessonScreenState extends State<BookLessonScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final vehicleCategoryId = _studentVehicleCategoryId;
+
     return Scaffold(
       appBar: AppBar(title: const Text(AppStrings.bookLessonTitle)),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: AppCard(
-          child: FormBuilder(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(AppStrings.bookLessonSubtitle, style: context.text.bodySmall?.copyWith(color: context.colors.textMuted)),
-                const SizedBox(height: AppSpacing.lg),
-                if (_banner != null) ...[AppNotice(message: _banner!), const SizedBox(height: AppSpacing.md)],
-                ApiDropdownField<Instructor>(
-                  name: 'instructorId',
-                  label: AppStrings.fieldInstructor,
-                  icon: AppIcons.person,
-                  loadItems: () async => (await _instructorProvider.getPaged(const PagedQuery(pageSize: 100))).resultList,
-                  idOf: (i) => i.id,
-                  labelOf: (i) => i.fullName,
-                  validator: AppValidators.requiredSelection<int>(),
-                  onChanged: (id, _) {
-                    setState(() => _instructorId = id);
-                    _formKey.currentState?.fields['slot']?.didChange(null);
-                  },
+      body: vehicleCategoryId == null
+          ? Center(
+              child: _loadError != null
+                  ? AppErrorState(message: _loadError!, onRetry: _loadProfile)
+                  : const CircularProgressIndicator(),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: AppCard(
+                child: FormBuilder(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        AppStrings.bookLessonSubtitle,
+                        style: context.text.bodySmall?.copyWith(
+                          color: context.colors.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      if (_banner != null) ...[
+                        AppNotice(message: _banner!),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
+                      ApiDropdownField<Instructor>(
+                        name: 'instructorId',
+                        label: AppStrings.fieldInstructor,
+                        icon: AppIcons.person,
+                        // Only instructors who teach the student's own category - the server rejects
+                        // a mismatch anyway, but the student should never be offered the choice.
+                        loadItems: () async =>
+                            (await _instructorProvider.getPaged(
+                              PagedQuery(
+                                pageSize: 100,
+                                filters: {
+                                  'vehicleCategoryId': vehicleCategoryId,
+                                },
+                              ),
+                            )).resultList,
+                        idOf: (i) => i.id,
+                        labelOf: (i) => i.fullName,
+                        validator: AppValidators.requiredSelection<int>(),
+                        onChanged: (id, _) {
+                          setState(() => _instructorId = id);
+                          _formKey.currentState?.fields['slot']?.didChange(
+                            null,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      AppDateField(
+                        name: 'date',
+                        label: AppStrings.fieldBookingDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 60)),
+                        validator: (value) =>
+                            value == null ? AppStrings.dateRequired : null,
+                        onChanged: (value) {
+                          setState(() => _date = value);
+                          _formKey.currentState?.fields['slot']?.didChange(
+                            null,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      ApiDropdownField<DateTime>(
+                        name: 'slot',
+                        label: AppStrings.fieldSlot,
+                        icon: AppIcons.time,
+                        reloadKey: '$_instructorId-$_date',
+                        loadItems: _loadSlots,
+                        idOf: (slot) => slot.millisecondsSinceEpoch,
+                        labelOf: (slot) =>
+                            '${AppFormat.time(slot)} - ${AppFormat.time(slot.add(const Duration(hours: 1)))}',
+                        validator: AppValidators.requiredSelection<int>(),
+                        emptyMessage: _instructorId == null || _date == null
+                            ? AppStrings.selectInstructorFirst
+                            : AppStrings.noSlotsForDate,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      ApiDropdownField<DrivingZone>(
+                        name: 'drivingZoneId',
+                        label: AppStrings.fieldZone,
+                        icon: AppIcons.place,
+                        loadItems: () async => (await _zoneProvider.getPaged(
+                          const PagedQuery(pageSize: 100),
+                        )).resultList,
+                        idOf: (z) => z.id,
+                        labelOf: (z) => z.name,
+                        validator: AppValidators.requiredSelection<int>(),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      AppTextField(
+                        name: 'note',
+                        label: AppStrings.fieldNote,
+                        hint: AppStrings.noteHint,
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      AppActionButton(
+                        label: AppStrings.sendRequest,
+                        onPressed: _submit,
+                        isLoading: _isSubmitting,
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                AppDateField(
-                  name: 'date',
-                  label: AppStrings.fieldBookingDate,
-                  firstDate: DateTime.now(),
-                  lastDate: DateTime.now().add(const Duration(days: 60)),
-                  validator: (value) => value == null ? AppStrings.dateRequired : null,
-                  onChanged: (value) {
-                    setState(() => _date = value);
-                    _formKey.currentState?.fields['slot']?.didChange(null);
-                  },
-                ),
-                const SizedBox(height: AppSpacing.md),
-                ApiDropdownField<DateTime>(
-                  name: 'slot',
-                  label: AppStrings.fieldSlot,
-                  icon: AppIcons.time,
-                  reloadKey: '$_instructorId-$_date',
-                  loadItems: _loadSlots,
-                  idOf: (slot) => slot.millisecondsSinceEpoch,
-                  labelOf: (slot) => '${AppFormat.time(slot)} - ${AppFormat.time(slot.add(const Duration(hours: 1)))}',
-                  validator: AppValidators.requiredSelection<int>(),
-                  emptyMessage: _instructorId == null || _date == null ? AppStrings.selectInstructorFirst : AppStrings.noSlotsForDate,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                ApiDropdownField<DrivingZone>(
-                  name: 'drivingZoneId',
-                  label: AppStrings.fieldZone,
-                  icon: AppIcons.place,
-                  loadItems: () async => (await _zoneProvider.getPaged(const PagedQuery(pageSize: 100))).resultList,
-                  idOf: (z) => z.id,
-                  labelOf: (z) => z.name,
-                  validator: AppValidators.requiredSelection<int>(),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(name: 'note', label: AppStrings.fieldNote, hint: AppStrings.noteHint, maxLines: 3),
-                const SizedBox(height: AppSpacing.lg),
-                AppActionButton(label: AppStrings.sendRequest, onPressed: _submit, isLoading: _isSubmitting),
-              ],
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
 }

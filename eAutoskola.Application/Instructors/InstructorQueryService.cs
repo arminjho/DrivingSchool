@@ -30,6 +30,14 @@ public class InstructorQueryService : BaseQueryService<InstructorDto, Instructor
         return query;
     }
 
+    /// <summary>Same role/active condition as <see cref="ApplyFilter"/>, for GET by id -
+    /// otherwise any signed-in user could fetch any other user's name/photo (student or admin
+    /// included) by passing their id here, since this endpoint has no role restriction of its
+    /// own. A user that exists but isn't an active instructor returns 404, not their data.</summary>
+    protected override IQueryable<User> GetByIdQuery(int id)
+        => _context.Users.Include(u => u.InstructorProfile!).ThenInclude(p => p.VehicleCategory)
+            .Where(u => u.Id == id && u.Role == Role.Instructor && u.IsActive);
+
     /// <summary>"Moji učenici" - distinct students who have at least one lesson with the
     /// current instructor, with each student's lesson count against this instructor.</summary>
     public async Task<PagedResult<StudentSummaryDto>> GetMyStudentsAsync(StudentSearchObject search, CancellationToken cancellationToken)

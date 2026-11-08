@@ -70,6 +70,18 @@ public class LessonCommandServiceTests
         return (await env.Service.BookAsync(Request(startsAtUtc), default)).Id;
     }
 
+    /// <summary>Moves a lesson's scheduled slot without going through BookAsync/RescheduleAsync's
+    /// own validation - used to simulate "the scheduled time has now arrived" for Start/Complete
+    /// gating tests, which need a lesson that was legitimately booked in the future.</summary>
+    private static async Task SetScheduledStartAsync(Env env, int lessonId, DateTime newStartsAtUtc)
+    {
+        var lesson = await env.F.Context.Lessons.SingleAsync(l => l.Id == lessonId);
+        var duration = lesson.EndsAtUtc - lesson.StartsAtUtc;
+        lesson.StartsAtUtc = newStartsAtUtc;
+        lesson.EndsAtUtc = newStartsAtUtc + duration;
+        await env.F.Context.SaveChangesAsync();
+    }
+
     [Fact]
     public async Task Book_CreatesPendingLessonHistoryAndNotificationInOneSave()
     {
@@ -135,8 +147,10 @@ public class LessonCommandServiceTests
         var env = Create();
         await BookAsStudentAsync(env, Slot(3, 10));
 
+        // Slots are quantized to the full hour, so an "overlapping" slot for the same instructor
+        // is necessarily the very same hour.
         env.ActAs(PaymentTestFixture.OtherStudentId, Role.Student);
-        await Assert.ThrowsAsync<ConflictException>(() => env.Service.BookAsync(Request(Slot(3, 10).AddMinutes(30)), default));
+        await Assert.ThrowsAsync<ConflictException>(() => env.Service.BookAsync(Request(Slot(3, 10)), default));
     }
 
     [Fact]
@@ -218,6 +232,7 @@ public class LessonCommandServiceTests
         await Assert.ThrowsAsync<BusinessException>(() => env.Service.CompleteAsync(id, complete, default)); // still Pending
         await env.Service.ConfirmAsync(id, default);
         await Assert.ThrowsAsync<BusinessException>(() => env.Service.CompleteAsync(id, complete, default)); // not started
+        await SetScheduledStartAsync(env, id, DateTime.UtcNow.AddMinutes(-5)); // scheduled time has now arrived
         await env.Service.StartAsync(id, default);
         await Assert.ThrowsAsync<ValidationException>(() => env.Service.CompleteAsync(id, new LessonCompleteRequest { Rating = 0, InstructorNotes = "x" }, default));
 
@@ -298,6 +313,7 @@ public class LessonCommandServiceTests
         var id = await BookAsStudentAsync(env, Slot(3, 10));
         env.ActAs(PaymentTestFixture.InstructorId, Role.Instructor);
         await env.Service.ConfirmAsync(id, default);
+        await SetScheduledStartAsync(env, id, DateTime.UtcNow.AddMinutes(-5)); // scheduled time has now arrived
         await env.Service.StartAsync(id, default);
         await env.Service.CompleteAsync(id, new LessonCompleteRequest { Rating = 4, InstructorNotes = "Dobro" }, default);
 
@@ -309,5 +325,250 @@ public class LessonCommandServiceTests
         Assert.All(history, h => Assert.False(string.IsNullOrWhiteSpace(h.Reason)));
         Assert.Equal(PaymentTestFixture.StudentId, history[0].ChangedByUserId);
         Assert.Equal(PaymentTestFixture.InstructorId, history[2].ChangedByUserId);
+    }
+
+    // --- Dorada #2: one slot-validation method, shared by Book and Reschedule ---
+
+    [Fact]
+    public async Task Book_OffTheFullHour_IsRejected()
+    {
+        var env = Create();
+        env.ActAs(PaymentTestFixture.StudentId, Role.Student);
+
+        await Assert.ThrowsAsync<ValidationException>(() => env.Service.BookAsync(Request(Slot(3, 10).AddMinutes(15)), default));
+    }
+
+    [Fact]
+    public async Task Book_OutsideWorkingHours_IsRejected()
+    {
+        var env = Create();
+        env.ActAs(PaymentTestFixture.StudentId, Role.Student);
+
+        await Assert.ThrowsAsync<ValidationException>(() => env.Service.BookAsync(Request(Slot(3, 7)), default)); // before WorkDayStart (08:00)
+        await Assert.ThrowsAsync<ValidationException>(() => env.Service.BookAsync(Request(Slot(3, 18)), default)); // no full hour fits before WorkDayEnd (18:00)
+    }
+
+    [Fact]
+    public async Task Book_WithAnInstructorOfADifferentVehicleCategory_IsRejected()
+    {
+        var env = Create();
+        env.F.Context.VehicleCategories.Add(new VehicleCategory { Id = 2, Code = "A", Name = "Motocikli" });
+        const int otherCategoryInstructorId = 5;
+        env.F.Context.Users.Add(new User { Id = otherCategoryInstructorId, Email = "i2@test.ba", PasswordHash = "x", Role = Role.Instructor, FirstName = "I", LastName = "2", PhoneNumber = "+387 61 000 005" });
+        env.F.Context.InstructorProfiles.Add(new InstructorProfile { UserId = otherCategoryInstructorId, VehicleCategoryId = 2 });
+        await env.F.Context.SaveChangesAsync();
+        env.ActAs(PaymentTestFixture.StudentId, Role.Student); // student's category is 1 (seeded in Create())
+
+        var request = new LessonBookRequest { InstructorId = otherCategoryInstructorId, DrivingZoneId = 1, StartsAtUtc = Slot(3, 10) };
+        await Assert.ThrowsAsync<ValidationException>(() => env.Service.BookAsync(request, default));
+    }
+
+    [Fact]
+    public async Task Book_WithADrivingZoneThatDoesNotExist_IsRejected()
+    {
+        var env = Create();
+        env.ActAs(PaymentTestFixture.StudentId, Role.Student);
+
+        var request = new LessonBookRequest { InstructorId = PaymentTestFixture.InstructorId, DrivingZoneId = 999, StartsAtUtc = Slot(3, 10) };
+        await Assert.ThrowsAsync<ValidationException>(() => env.Service.BookAsync(request, default));
+    }
+
+    /// <summary>The professor's exact complaint: a booking with no vehicle available used to be
+    /// created anyway as Pending, only failing later at Confirm with "needs a vehicle" - it must
+    /// instead fail upfront, and no Lesson row should be created at all.</summary>
+    [Fact]
+    public async Task Book_WithNoVehicleAvailableForTheSlot_IsRejectedUpfront_AndCreatesNoLesson()
+    {
+        var env = Create();
+        const int secondInstructorId = 5;
+        env.F.Context.Users.Add(new User { Id = secondInstructorId, Email = "i2@test.ba", PasswordHash = "x", Role = Role.Instructor, FirstName = "I", LastName = "2", PhoneNumber = "+387 61 000 005" });
+        env.F.Context.InstructorProfiles.Add(new InstructorProfile { UserId = secondInstructorId, VehicleCategoryId = 1 });
+        await env.F.Context.SaveChangesAsync();
+        await BookAsStudentAsync(env, Slot(3, 10)); // takes the fixture's only category-1 vehicle for this slot
+
+        env.ActAs(PaymentTestFixture.OtherStudentId, Role.Student);
+        var request = new LessonBookRequest { InstructorId = secondInstructorId, DrivingZoneId = 1, StartsAtUtc = Slot(3, 10) };
+
+        await Assert.ThrowsAsync<ValidationException>(() => env.Service.BookAsync(request, default));
+        Assert.Equal(1, await env.F.Context.Lessons.CountAsync());
+    }
+
+    [Fact]
+    public async Task Reschedule_ToASlotOutsideWorkingHours_IsRejected()
+    {
+        var env = Create();
+        var id = await BookAsStudentAsync(env, Slot(3, 10));
+
+        await Assert.ThrowsAsync<ValidationException>(() => env.Service.RescheduleAsync(id, new LessonRescheduleRequest { StartsAtUtc = Slot(5, 11).AddMinutes(20), DrivingZoneId = 1 }, default));
+    }
+
+    [Fact]
+    public async Task Reschedule_ToADrivingZoneThatDoesNotExist_IsRejected()
+    {
+        var env = Create();
+        var id = await BookAsStudentAsync(env, Slot(3, 10));
+
+        await Assert.ThrowsAsync<ValidationException>(() => env.Service.RescheduleAsync(id, new LessonRescheduleRequest { StartsAtUtc = Slot(5, 11), DrivingZoneId = 999 }, default));
+    }
+
+    // --- Dorada #3: Confirm re-validates the slot is still in the future and the vehicle still usable ---
+
+    [Fact]
+    public async Task Confirm_AfterTheSlotHasAlreadyPassed_IsRejected()
+    {
+        var env = Create();
+        var id = await BookAsStudentAsync(env, Slot(3, 10));
+        await SetScheduledStartAsync(env, id, DateTime.UtcNow.AddMinutes(-5));
+
+        env.ActAs(PaymentTestFixture.InstructorId, Role.Instructor);
+        await Assert.ThrowsAsync<BusinessException>(() => env.Service.ConfirmAsync(id, default));
+    }
+
+    [Fact]
+    public async Task Confirm_WhenTheAssignedVehicleIsNoLongerActive_ReassignsAFreeOneOfTheSameCategory()
+    {
+        var env = Create();
+        var id = await BookAsStudentAsync(env, Slot(3, 10));
+        env.F.Context.Vehicles.Add(new Vehicle { Id = 2, RegistrationNumber = "E22-A-124", Make = "VW", Model = "Golf", VehicleCategoryId = 1, ManufactureYear = 2022 });
+        (await env.F.Context.Vehicles.SingleAsync(v => v.Id == 1)).Status = VehicleStatus.InService;
+        await env.F.Context.SaveChangesAsync();
+
+        env.ActAs(PaymentTestFixture.InstructorId, Role.Instructor);
+        var lesson = await env.Service.ConfirmAsync(id, default);
+
+        Assert.Equal("Confirmed", lesson.Status);
+        Assert.Equal(2, (await env.F.Context.Lessons.SingleAsync(l => l.Id == id)).VehicleId);
+    }
+
+    [Fact]
+    public async Task Confirm_WhenTheAssignedVehicleIsNoLongerActive_AndNoReplacementExists_IsRejected()
+    {
+        var env = Create();
+        var id = await BookAsStudentAsync(env, Slot(3, 10));
+        (await env.F.Context.Vehicles.SingleAsync(v => v.Id == 1)).Status = VehicleStatus.InService;
+        await env.F.Context.SaveChangesAsync();
+
+        env.ActAs(PaymentTestFixture.InstructorId, Role.Instructor);
+        await Assert.ThrowsAsync<BusinessException>(() => env.Service.ConfirmAsync(id, default));
+    }
+
+    [Fact]
+    public async Task Confirm_WhenTheAssignedVehicleWasSoftDeleted_ReassignsAFreeOneOfTheSameCategory()
+    {
+        var env = Create();
+        var id = await BookAsStudentAsync(env, Slot(3, 10));
+        env.F.Context.Vehicles.Add(new Vehicle { Id = 2, RegistrationNumber = "E22-A-124", Make = "VW", Model = "Golf", VehicleCategoryId = 1, ManufactureYear = 2022 });
+        (await env.F.Context.Vehicles.SingleAsync(v => v.Id == 1)).IsDeleted = true;
+        await env.F.Context.SaveChangesAsync();
+
+        env.ActAs(PaymentTestFixture.InstructorId, Role.Instructor);
+        var lesson = await env.Service.ConfirmAsync(id, default);
+
+        Assert.Equal("Confirmed", lesson.Status);
+        Assert.Equal(2, (await env.F.Context.Lessons.SingleAsync(l => l.Id == id)).VehicleId);
+    }
+
+    // --- Dorada #4: a reason is required whenever the canceller is not the lesson's own student ---
+
+    [Fact]
+    public async Task Cancel_PendingRequestByTheInstructor_NeedsAReason()
+    {
+        var env = Create();
+        var id = await BookAsStudentAsync(env, Slot(3, 10));
+        env.ActAs(PaymentTestFixture.InstructorId, Role.Instructor);
+
+        await Assert.ThrowsAsync<ValidationException>(() => env.Service.CancelAsync(id, null, default));
+        Assert.Equal(LessonStatus.Pending, (await env.F.Context.Lessons.SingleAsync()).Status);
+
+        var lesson = await env.Service.CancelAsync(id, new LessonReasonRequest { Reason = "Instruktor spriječen" }, default);
+        Assert.Equal("Cancelled", lesson.Status);
+    }
+
+    [Fact]
+    public async Task Cancel_PendingRequestByAnAdmin_NeedsAReason()
+    {
+        var env = Create();
+        var id = await BookAsStudentAsync(env, Slot(3, 10));
+        env.ActAs(AdminId, Role.Admin);
+
+        await Assert.ThrowsAsync<ValidationException>(() => env.Service.CancelAsync(id, null, default));
+
+        var lesson = await env.Service.CancelAsync(id, new LessonReasonRequest { Reason = "Administrativni razlog" }, default);
+        Assert.Equal("Cancelled", lesson.Status);
+    }
+
+    // --- Dorada #5: Start/Complete are time-gated, and InstructorNotes is truly mandatory ---
+
+    [Fact]
+    public async Task Start_MoreThanTheToleranceBeforeTheScheduledTime_IsRejected()
+    {
+        var env = Create();
+        var id = await BookAsStudentAsync(env, Slot(3, 10));
+        env.ActAs(PaymentTestFixture.InstructorId, Role.Instructor);
+        await env.Service.ConfirmAsync(id, default);
+
+        var ex = await Assert.ThrowsAsync<BusinessException>(() => env.Service.StartAsync(id, default));
+        Assert.Contains(LessonStateMachine.StartToleranceMinutes.ToString(), ex.Message);
+    }
+
+    [Fact]
+    public async Task Start_WithinTheToleranceBeforeTheScheduledTime_Succeeds()
+    {
+        var env = Create();
+        var id = await BookAsStudentAsync(env, Slot(3, 10));
+        env.ActAs(PaymentTestFixture.InstructorId, Role.Instructor);
+        await env.Service.ConfirmAsync(id, default);
+        await SetScheduledStartAsync(env, id, DateTime.UtcNow.AddMinutes(LessonStateMachine.StartToleranceMinutes - 1));
+
+        var started = await env.Service.StartAsync(id, default);
+
+        Assert.NotNull(started.StartedAt);
+    }
+
+    [Fact]
+    public async Task Complete_BeforeTheScheduledStartTime_IsRejected_EvenIfStartedEarlyWithinTolerance()
+    {
+        var env = Create();
+        var id = await BookAsStudentAsync(env, Slot(3, 10));
+        env.ActAs(PaymentTestFixture.InstructorId, Role.Instructor);
+        await env.Service.ConfirmAsync(id, default);
+        await SetScheduledStartAsync(env, id, DateTime.UtcNow.AddMinutes(LessonStateMachine.StartToleranceMinutes - 1));
+        await env.Service.StartAsync(id, default);
+
+        await Assert.ThrowsAsync<BusinessException>(() => env.Service.CompleteAsync(id, new LessonCompleteRequest { Rating = 5, InstructorNotes = "Ok" }, default));
+    }
+
+    [Fact]
+    public async Task Complete_WithBlankInstructorNotes_IsRejected()
+    {
+        var env = Create();
+        var id = await BookAsStudentAsync(env, Slot(3, 10));
+        env.ActAs(PaymentTestFixture.InstructorId, Role.Instructor);
+        await env.Service.ConfirmAsync(id, default);
+        await SetScheduledStartAsync(env, id, DateTime.UtcNow.AddMinutes(-5));
+        await env.Service.StartAsync(id, default);
+
+        await Assert.ThrowsAsync<ValidationException>(() => env.Service.CompleteAsync(id, new LessonCompleteRequest { Rating = 5, InstructorNotes = "   " }, default));
+    }
+
+    // --- Dorada #6: the instructor is notified when the student reschedules, in the same save ---
+
+    [Fact]
+    public async Task Reschedule_NotifiesTheInstructor_InTheSameSave()
+    {
+        var env = Create();
+        var id = await BookAsStudentAsync(env, Slot(3, 10));
+        var saves = env.F.CountSaves();
+
+        var moved = await env.Service.RescheduleAsync(id, new LessonRescheduleRequest { StartsAtUtc = Slot(5, 11), DrivingZoneId = 1 }, default);
+
+        Assert.Equal(Slot(5, 11), moved.StartsAtUtc);
+        Assert.Equal(1, saves());
+        var notification = await env.F.Context.Notifications.SingleAsync(n => n.Type == NotificationType.LessonRescheduled);
+        Assert.Equal(PaymentTestFixture.InstructorId, notification.UserId);
+        env.F.Pusher.Verify(p => p.PushAsync(
+            PaymentTestFixture.InstructorId,
+            It.Is<object>(o => ((NotificationDto)o).Type == nameof(NotificationType.LessonRescheduled)),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 }

@@ -238,6 +238,7 @@ void main() {
       await tester.tap(find.text(AppStrings.save));
       await tester.pump();
       expect(find.text(AppStrings.ratingRequired), findsOneWidget);
+      expect(find.text(AppStrings.instructorNotesRequired), findsOneWidget);
       expect(calls.where((c) => c.method == 'POST'), isEmpty);
 
       await tester.tap(find.byIcon(Icons.star_border_rounded).at(3));

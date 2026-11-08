@@ -44,17 +44,30 @@ public class MeService
 
     public async Task<UserDto> UpdateMeAsync(MeUpdateRequest request, CancellationToken cancellationToken)
     {
-        var errors = new Dictionary<string, string[]>();
-        FieldValidationRules.RequireText(errors, nameof(request.FirstName), request.FirstName, 100, Messages.FirstNameLabel);
-        FieldValidationRules.RequireText(errors, nameof(request.LastName), request.LastName, 100, Messages.LastNameLabel);
-        FieldValidationRules.RequireEmail(errors, nameof(request.Email), request.Email);
-        FieldValidationRules.RequirePhone(errors, nameof(request.PhoneNumber), request.PhoneNumber);
-
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == _currentUser.UserId, cancellationToken)
             ?? throw new NotFoundException(nameof(User), _currentUser.UserId);
 
-        if (errors.Count == 0 && user.Email != request.Email
-            && await _context.Users.AnyAsync(u => u.Email == request.Email, cancellationToken))
+        var errors = new Dictionary<string, string[]>();
+        FieldValidationRules.RequireText(errors, nameof(request.FirstName), request.FirstName, 100, Messages.FirstNameLabel);
+        FieldValidationRules.RequireText(errors, nameof(request.LastName), request.LastName, 100, Messages.LastNameLabel);
+        FieldValidationRules.RequirePhone(errors, nameof(request.PhoneNumber), request.PhoneNumber);
+
+        // A seed/demo account (e.g. "mobile") logs in with a short word in place of an e-mail,
+        // since login is by this same column. Enforcing the e-mail format on every save would
+        // make it impossible to save any other field - and changing it here would change the
+        // login - until that word is replaced with a real address. Only enforce the format when
+        // the user is actually changing it.
+        var emailChanged = user.Email != request.Email;
+        if (emailChanged)
+        {
+            FieldValidationRules.RequireEmail(errors, nameof(request.Email), request.Email);
+        }
+        else if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            FieldValidationRules.Add(errors, nameof(request.Email), Messages.RequiredField);
+        }
+
+        if (emailChanged && errors.Count == 0 && await _context.Users.AnyAsync(u => u.Email == request.Email, cancellationToken))
         {
             FieldValidationRules.Add(errors, nameof(request.Email), Messages.EmailAlreadyExists);
         }

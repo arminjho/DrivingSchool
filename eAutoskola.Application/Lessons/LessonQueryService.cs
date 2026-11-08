@@ -60,10 +60,12 @@ public class LessonQueryService
         var studentId = _currentUser.UserId;
         var query = LessonDetailQuery().Where(l => l.StudentId == studentId);
 
+        var now = DateTime.UtcNow;
         query = search.Tab.ToLowerInvariant() switch
         {
             "completed" => query.Where(l => l.Status == LessonStatus.Completed),
             "cancelled" => query.Where(l => l.Status == LessonStatus.Cancelled),
+            "upcoming" => query.Where(l => (l.Status == LessonStatus.Pending || l.Status == LessonStatus.Confirmed) && l.StartsAtUtc > now),
             _ => query.Where(l => l.Status == LessonStatus.Pending || l.Status == LessonStatus.Confirmed),
         };
 
